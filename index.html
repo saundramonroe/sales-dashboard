@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anaconda Sales Intelligence Dashboard</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState } = React;
+        
+        // Icons as inline SVG components
+        const Upload = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+        );
+        
+        const Award = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+            </svg>
+        );
+        
+        const BarChart = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>
+            </svg>
+        );
+        
+        const Star = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+        );
+        
+        const Target = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+            </svg>
+        );
+        
+        const ThumbsDown = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/>
+            </svg>
+        );
+
+        const AnacondaSalesIntelligence = () => {
+            const [data, setData] = useState(null);
+            const [analysis, setAnalysis] = useState(null);
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState(null);
+
+            const valueSellingPatterns = {
+                discovery: {
+                    keywords: ['what does it cost', 'how much time', 'how many', 'what keeps you up', 'walk me through', 'help me understand'],
+                    weight: 5,
+                    name: 'Discovery & Pain'
+                },
+                quantified_impact: {
+                    keywords: ['reduction', 'efficiency', 'roi', 'cost savings', 'save'],
+                    weight: 5,
+                    name: 'Quantified Impact'
+                },
+                customer_pain: {
+                    keywords: ['problem', 'issue', 'challenge', 'difficulty', 'bottleneck'],
+                    weight: 4,
+                    name: 'Customer Pain'
+                }
+            };
+
+            const negativePatterns = {
+                feature_selling: {
+                    keywords: ['just use', 'simply use', 'just install'],
+                    weight: -3,
+                    name: 'Feature Selling'
+                },
+                compliance_selling: {
+                    keywords: ['out of compliance', 'you need to buy', 'mandatory'],
+                    weight: -5,
+                    name: 'Compliance Selling'
+                }
+            };
+
+            const analyzeText = (text) => {
+                const textLower = (text || '').toLowerCase();
+                const results = {};
+                
+                Object.entries(valueSellingPatterns).forEach(([key, pattern]) => {
+                    let count = 0;
+                    pattern.keywords.forEach(keyword => {
+                        if (textLower.includes(keyword)) count++;
+                    });
+                    results[key] = { name: pattern.name, count, score: count * pattern.weight };
+                });
+
+                Object.entries(negativePatterns).forEach(([key, pattern]) => {
+                    let count = 0;
+                    pattern.keywords.forEach(keyword => {
+                        if (textLower.includes(keyword)) count++;
+                    });
+                    results[key] = { name: pattern.name, count, score: count * pattern.weight, isNegative: true };
+                });
+
+                const totalScore = Object.values(results).reduce((sum, r) => sum + r.score, 0);
+                const positiveScore = Object.entries(results)
+                    .filter(([key]) => !negativePatterns[key])
+                    .reduce((sum, [_, r]) => sum + r.score, 0);
+
+                let maturity = 'Transactional';
+                if (totalScore >= 8) maturity = 'Master';
+                else if (totalScore >= 5) maturity = 'Proficient';
+                else if (totalScore >= 3) maturity = 'Developing';
+                else if (positiveScore < 0) maturity = 'Needs Coaching';
+
+                return {
+                    patterns: results,
+                    totalScore,
+                    maturity,
+                    isHighValue: totalScore >= 5
+                };
+            };
+
+            const handleFileUpload = async (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                setLoading(true);
+                setError(null);
+
+                try {
+                    const text = await file.text();
+                    
+                    Papa.parse(text, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: (results) => {
+                            const processed = results.data.map((row, idx) => {
+                                const textToAnalyze = [
+                                    row['Call title'] || '',
+                                    row['Account Name'] || '',
+                                    row['Opportunity Name'] || ''
+                                ].join(' ');
+
+                                const analysis = analyzeText(textToAnalyze);
+
+                                return {
+                                    id: idx,
+                                    callTitle: row['Call title'] || 'Unknown',
+                                    account: row['Account Name'] || 'Unknown',
+                                    repName: row['Rep Name'] || 'Unknown Rep',
+                                    valueSelling: analysis
+                                };
+                            });
+
+                            setData(processed);
+
+                            // Generate analysis
+                            const total = processed.length;
+                            const avgScore = processed.reduce((sum, r) => sum + r.valueSelling.totalScore, 0) / total;
+                            
+                            const maturityDist = {};
+                            processed.forEach(r => {
+                                const m = r.valueSelling.maturity;
+                                maturityDist[m] = (maturityDist[m] || 0) + 1;
+                            });
+
+                            const repPerf = {};
+                            processed.forEach(r => {
+                                const rep = r.repName;
+                                if (!repPerf[rep]) {
+                                    repPerf[rep] = {
+                                        calls: 0,
+                                        totalScore: 0,
+                                        scores: [],
+                                        masterCalls: 0,
+                                        proficientCalls: 0,
+                                        developingCalls: 0,
+                                        transactionalCalls: 0,
+                                        needsCoaching: 0
+                                    };
+                                }
+                                repPerf[rep].calls++;
+                                repPerf[rep].totalScore += r.valueSelling.totalScore;
+                                repPerf[rep].scores.push(r.valueSelling.totalScore);
+                                
+                                const m = r.valueSelling.maturity;
+                                if (m === 'Master') repPerf[rep].masterCalls++;
+                                else if (m === 'Proficient') repPerf[rep].proficientCalls++;
+                                else if (m === 'Developing') repPerf[rep].developingCalls++;
+                                else if (m === 'Transactional') repPerf[rep].transactionalCalls++;
+                                else if (m === 'Needs Coaching') repPerf[rep].needsCoaching++;
+                            });
+
+                            Object.keys(repPerf).forEach(rep => {
+                                const stats = repPerf[rep];
+                                stats.avgScore = Math.round(stats.totalScore / stats.calls);
+                                stats.highScore = Math.max(...stats.scores);
+                                stats.lowScore = Math.min(...stats.scores);
+                            });
+
+                            setAnalysis({
+                                overview: {
+                                    total,
+                                    avgScore: Math.round(avgScore),
+                                    masterCallsCount: processed.filter(r => r.valueSelling.maturity === 'Master').length,
+                                    highValueCount: processed.filter(r => r.valueSelling.isHighValue).length,
+                                    needsCoachingCount: processed.filter(r => r.valueSelling.maturity === 'Needs Coaching').length
+                                },
+                                maturityDistribution: maturityDist,
+                                repPerformance: repPerf
+                            });
+
+                            setLoading(false);
+                        },
+                        error: (error) => {
+                            setError('Error parsing CSV: ' + error.message);
+                            setLoading(false);
+                        }
+                    });
+                } catch (err) {
+                    setError('Error reading file: ' + err.message);
+                    setLoading(false);
+                }
+            };
+
+            const getMaturityColor = (maturity) => {
+                switch(maturity) {
+                    case 'Master': return 'bg-green-100 text-green-800 border-green-300';
+                    case 'Proficient': return 'bg-blue-100 text-blue-800 border-blue-300';
+                    case 'Developing': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+                    case 'Needs Coaching': return 'bg-red-100 text-red-800 border-red-300';
+                    default: return 'bg-gray-100 text-gray-800 border-gray-300';
+                }
+            };
+
+            if (!data) {
+                return (
+                    <div className="min-h-screen bg-gray-50 p-8">
+                        <div className="max-w-7xl mx-auto">
+                            <div className="bg-white rounded-lg shadow-lg p-8">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-8 h-8 text-blue-600"><Award /></div>
+                                    <div>
+                                        <h1 className="text-3xl font-bold text-gray-900">Anaconda Sales Intelligence</h1>
+                                        <p className="text-gray-600">Upload your Clari CSV to analyze call quality</p>
+                                    </div>
+                                </div>
+
+                                {error && (
+                                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+                                        {error}
+                                    </div>
+                                )}
+
+                                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer">
+                                    <input
+                                        type="file"
+                                        accept=".csv"
+                                        onChange={handleFileUpload}
+                                        className="hidden"
+                                        id="file-upload"
+                                    />
+                                    <label htmlFor="file-upload" className="cursor-pointer">
+                                        <div className="w-16 h-16 text-gray-400 mx-auto mb-4"><Upload /></div>
+                                        <p className="text-xl font-medium text-gray-700 mb-2">Upload Clari CSV</p>
+                                        <p className="text-sm text-gray-500">Click or drag and drop your CSV file here</p>
+                                    </label>
+                                </div>
+
+                                {loading && (
+                                    <div className="mt-8 text-center">
+                                        <div className="animate-pulse">
+                                            <div className="w-12 h-12 text-blue-600 mx-auto mb-4"><BarChart /></div>
+                                            <p className="text-gray-600">Analyzing calls...</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gray-50 p-8">
+                    <div className="max-w-7xl mx-auto">
+                        <div className="bg-white rounded-lg shadow p-6 mb-6">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 text-blue-600"><Award /></div>
+                                    <div>
+                                        <h1 className="text-2xl font-bold text-gray-900">Anaconda Sales Intelligence</h1>
+                                        <p className="text-sm text-gray-600">
+                                            {data.length} calls analyzed • Avg Score: {analysis.overview.avgScore}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => { setData(null); setAnalysis(null); }}
+                                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium"
+                                >
+                                    Upload New
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-6 mb-6">
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-5 h-5 text-blue-600"><BarChart /></div>
+                                    <span className="text-sm text-gray-600">Average Score</span>
+                                </div>
+                                <p className="text-3xl font-bold text-blue-600">{analysis.overview.avgScore}</p>
+                            </div>
+
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-5 h-5 text-green-600"><Star /></div>
+                                    <span className="text-sm text-gray-600">Master Calls</span>
+                                </div>
+                                <p className="text-3xl font-bold text-gray-900">{analysis.overview.masterCallsCount}</p>
+                            </div>
+
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-5 h-5 text-purple-600"><Target /></div>
+                                    <span className="text-sm text-gray-600">High-Value</span>
+                                </div>
+                                <p className="text-3xl font-bold text-gray-900">{analysis.overview.highValueCount}</p>
+                            </div>
+
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-5 h-5 text-red-600"><ThumbsDown /></div>
+                                    <span className="text-sm text-gray-600">Needs Coaching</span>
+                                </div>
+                                <p className="text-3xl font-bold text-gray-900">{analysis.overview.needsCoachingCount}</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow p-6 mb-6">
+                            <h3 className="text-lg font-semibold mb-4">Maturity Distribution</h3>
+                            <div className="grid grid-cols-5 gap-4">
+                                {Object.entries(analysis.maturityDistribution).map(([maturity, count]) => (
+                                    <div key={maturity} className={`rounded-lg p-4 border-2 ${getMaturityColor(maturity)}`}>
+                                        <p className="text-sm font-medium mb-1">{maturity}</p>
+                                        <p className="text-3xl font-bold">{count}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow p-6">
+                            <h3 className="text-lg font-semibold mb-4">All Calls</h3>
+                            <div className="space-y-3">
+                                {data.map((call) => (
+                                    <div key={call.id} className="border-2 border-blue-200 rounded-lg p-4">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex-1">
+                                                <p className="font-semibold text-gray-900">{call.account}</p>
+                                                <p className="text-sm text-gray-600">{call.callTitle}</p>
+                                                <p className="text-xs text-gray-500">Rep: {call.repName}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-2xl font-bold text-green-600">
+                                                    {call.valueSelling.totalScore}
+                                                </span>
+                                                <p className="text-xs text-gray-600">score</p>
+                                            </div>
+                                        </div>
+                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getMaturityColor(call.valueSelling.maturity)}`}>
+                                            {call.valueSelling.maturity}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<AnacondaSalesIntelligence />, document.getElementById('root'));
+    </script>
+</body>
+</html>
