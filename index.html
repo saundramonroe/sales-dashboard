@@ -62,6 +62,16 @@
                 const textLower = (text || '').toLowerCase();
                 const results = {};
                 
+                // More flexible keyword matching - look for partial matches
+                Object.entries(valuePatterns).forEach(([key, pattern]) => {
+                    let count = 0;
+                    const found = [];
+                    pattern.keywords.forEach(kw => {
+                        // Use regex for more flexible matching
+                        const regex = new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, '\\            const analyzeText = (text) => {
+                const textLower = (text || '').toLowerCase();
+                const results = {};
+                
                 Object.entries(valuePatterns).forEach(([key, pattern]) => {
                     let count = 0;
                     const found = [];
@@ -90,14 +100,84 @@
                 else if (negScore > totalScore) maturity = 'Needs Coaching';
 
                 return { patterns: results, totalScore, maturity, hasNegativePatterns: negScore > 0 };
+            };'), 'gi');
+                        const matches = textLower.match(regex);
+                        if (matches) {
+                            count += matches.length;
+                            if (!found.includes(kw)) found.push(kw);
+                        }
+                    });
+                    results[key] = { ...pattern, count, score: count * pattern.weight, matchedKeywords: found };
+                });
+
+                Object.entries(negativePatterns).forEach(([key, pattern]) => {
+                    let count = 0;
+                    const found = [];
+                    pattern.keywords.forEach(kw => {
+                        const regex = new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, '\\            const analyzeText = (text) => {
+                const textLower = (text || '').toLowerCase();
+                const results = {};
+                
+                Object.entries(valuePatterns).forEach(([key, pattern]) => {
+                    let count = 0;
+                    const found = [];
+                    pattern.keywords.forEach(kw => {
+                        if (textLower.includes(kw)) { count++; found.push(kw); }
+                    });
+                    results[key] = { ...pattern, count, score: count * pattern.weight, matchedKeywords: found };
+                });
+
+                Object.entries(negativePatterns).forEach(([key, pattern]) => {
+                    let count = 0;
+                    const found = [];
+                    pattern.keywords.forEach(kw => {
+                        if (textLower.includes(kw)) { count++; found.push(kw); }
+                    });
+                    results[key] = { ...pattern, count, score: count * pattern.weight, matchedKeywords: found, isNegative: true };
+                });
+
+                const totalScore = Object.values(results).reduce((sum, r) => sum + r.score, 0);
+                const negScore = Object.entries(results).filter(([k]) => negativePatterns[k]).reduce((sum, [_, r]) => sum + Math.abs(r.score), 0);
+                
+                let maturity = 'Transactional';
+                if (totalScore >= 8 && negScore === 0) maturity = 'Master';
+                else if (totalScore >= 5 && negScore <= 3) maturity = 'Proficient';
+                else if (totalScore >= 3) maturity = 'Developing';
+                else if (negScore > totalScore) maturity = 'Needs Coaching';
+
+                return { patterns: results, totalScore, maturity, hasNegativePatterns: negScore > 0 };
+            };'), 'gi');
+                        const matches = textLower.match(regex);
+                        if (matches) {
+                            count += matches.length;
+                            if (!found.includes(kw)) found.push(kw);
+                        }
+                    });
+                    results[key] = { ...pattern, count, score: count * pattern.weight, matchedKeywords: found, isNegative: true };
+                });
+
+                const totalScore = Object.values(results).reduce((sum, r) => sum + r.score, 0);
+                const negScore = Object.entries(results).filter(([k]) => negativePatterns[k]).reduce((sum, [_, r]) => sum + Math.abs(r.score), 0);
+                
+                let maturity = 'Transactional';
+                if (totalScore >= 8 && negScore === 0) maturity = 'Master';
+                else if (totalScore >= 5 && negScore <= 3) maturity = 'Proficient';
+                else if (totalScore >= 3) maturity = 'Developing';
+                else if (negScore > totalScore) maturity = 'Needs Coaching';
+
+                console.log('Analysis for text:', text.substring(0, 100), '| Score:', totalScore, '| Maturity:', maturity);
+
+                return { patterns: results, totalScore, maturity, hasNegativePatterns: negScore > 0 };
             };
 
-            const getCoachingInsights = (vs) => {
+            const getCoachingInsights = (vs, call) => {
                 const insights = [];
+                
+                // Value-selling based insights
                 if (vs.maturity === 'Needs Coaching') {
                     if (vs.hasNegativePatterns) insights.push('🚨 RED FLAG: Compliance/feature selling detected instead of value-based approach.');
                     insights.push('Focus coaching on: Discovery questions, customer pain, and quantifying business impact.');
-                } else if (vs.maturity === 'Transactional') {
+                } else if (vs.maturity === 'Transactional' || vs.totalScore === 0) {
                     if (vs.patterns.discovery?.count === 0) insights.push('MISSING: No discovery questions. Ask "What does that cost you?" or "How much time does that take?"');
                     if (vs.patterns.quantified_impact?.count === 0) insights.push('MISSING: No quantified business impact. Reference ROI, cost savings, or efficiency gains.');
                 } else if (vs.maturity === 'Developing') {
@@ -107,6 +187,26 @@
                 } else if (vs.maturity === 'Master') {
                     insights.push('🌟 EXEMPLAR: Excellent value-based selling. Use as training example.');
                 }
+                
+                // Add insights based on engagement data if available
+                if (call && call.engagingQuestions !== undefined) {
+                    if (call.engagingQuestions < 3) {
+                        insights.push(`⚠️ Low question activity (${call.engagingQuestions} questions). Increase discovery: ask about current costs, time spent on problems, business impact of issues.`);
+                    } else if (call.engagingQuestions >= 8) {
+                        insights.push(`✅ Excellent discovery with ${call.engagingQuestions} questions - keep this up!`);
+                    }
+                }
+                
+                if (call && call.talkListenRatio !== undefined) {
+                    if (call.talkListenRatio > 70) {
+                        insights.push(`⚠️ Rep talked ${call.talkListenRatio}% of the time - ask more questions and let customer share their challenges.`);
+                    }
+                }
+                
+                if (call && call.stageProgression === 'Regressed') {
+                    insights.push('⚠️ Deal moved backward - follow up immediately to understand concerns and re-establish value alignment.');
+                }
+                
                 return insights;
             };
 
@@ -126,22 +226,70 @@
                 const topics = call.clariTopics || [];
                 const topicNames = topics.map(t => t.name);
                 
-                let summary = `${call.callTitle} with ${call.account}.`;
+                // Build detailed narrative summary
+                let summary = '';
                 
+                // Opening context
+                const attendeeList = call.attendees ? call.attendees.split(',').map(a => a.trim().split('@')[0]).join(', ') : 'team members';
+                summary += `Call with ${attendeeList} from ${call.account}. `;
+                
+                // What was discussed based on Clari topics
                 if (topics.length > 0) {
-                    summary += ` Main topics: ${topics.slice(0, 3).map(t => `${t.name} (${t.score})`).join(', ')}.`;
+                    summary += `The conversation centered on: `;
+                    const topicDescriptions = topics.map(t => {
+                        const topicExplanations = {
+                            'Process': `procurement and approval processes (${t.score} mentions) - discussing how to navigate internal workflows and get stakeholder buy-in`,
+                            'Next Steps': `action items and follow-ups (${t.score} mentions) - defining clear next steps to move the deal forward`,
+                            'Timing': `timeline and urgency (${t.score} mentions) - discussing deadlines, implementation schedules, and time constraints`,
+                            'Pricing': `commercial terms and pricing (${t.score} mentions) - negotiating costs, contract terms, and investment details`,
+                            'Competition': `competitive landscape (${t.score} mentions) - customer is evaluating multiple vendors and comparing solutions`,
+                            'Customer Goals Pain Points': `customer needs and challenges (${t.score} mentions) - uncovering pain points, business problems, and desired outcomes`,
+                            'Budget': `budget and funding (${t.score} mentions) - discussing financial approval, budget allocation, and ROI justification`,
+                            'Authority': `decision-making authority (${t.score} mentions) - identifying key stakeholders and who has approval power`
+                        };
+                        return topicExplanations[t.name] || `${t.name} (${t.score} mentions)`;
+                    });
+                    summary += topicDescriptions.slice(0, 3).join('; ') + '. ';
                 }
                 
-                if (call.engagingQuestions > 5) {
-                    summary += ` High engagement with ${call.engagingQuestions} discovery questions.`;
-                } else if (call.engagingQuestions < 2) {
-                    summary += ` Limited discovery (${call.engagingQuestions} questions).`;
+                // Engagement quality
+                if (call.engagingQuestions >= 6) {
+                    summary += `Strong discovery approach with ${call.engagingQuestions} engaging questions asked by the rep. `;
+                } else if (call.engagingQuestions >= 3) {
+                    summary += `Moderate engagement with ${call.engagingQuestions} questions asked. `;
+                } else if (call.engagingQuestions > 0) {
+                    summary += `Limited discovery - only ${call.engagingQuestions} questions asked. Rep should probe deeper into customer pain and business impact. `;
                 }
                 
+                // Talk/listen balance
+                if (call.talkListenRatio >= 40 && call.talkListenRatio <= 60) {
+                    summary += `Well-balanced conversation with ${call.talkListenRatio}% rep talk time - good two-way dialogue. `;
+                } else if (call.talkListenRatio > 70) {
+                    summary += `Rep-dominated conversation (${call.talkListenRatio}% talk time) - customer may not have had enough time to express needs. `;
+                } else if (call.talkListenRatio < 30) {
+                    summary += `Rep talked only ${call.talkListenRatio}% of the time - may need to lead the conversation more. `;
+                }
+                
+                // Deal progression
                 if (call.stageProgression === 'Advanced') {
-                    summary += ` ✅ Deal advanced from ${call.dealStageBefore} to ${call.dealStageAfter}.`;
+                    summary += `✅ POSITIVE OUTCOME: Deal successfully advanced from ${call.dealStageBefore} to ${call.dealStageAfter}. This call moved the opportunity forward. `;
                 } else if (call.stageProgression === 'Regressed') {
-                    summary += ` ⚠️ Deal moved backward.`;
+                    summary += `⚠️ CONCERN: Deal moved backward from ${call.dealStageBefore} to ${call.dealStageAfter}. This indicates potential issues or lost momentum that need addressing. `;
+                } else if (call.dealStageAfter) {
+                    summary += `Deal remains in ${call.dealStageAfter} stage - no progression during this call. `;
+                }
+                
+                // Value-selling assessment
+                if (call.valueSelling.maturity === 'Master') {
+                    summary += `🌟 EXEMPLARY value-based selling demonstrated - use this call as a training example.`;
+                } else if (call.valueSelling.maturity === 'Proficient') {
+                    summary += `Good value-based approach, with room to deepen discovery and quantify business impact more.`;
+                } else if (call.valueSelling.maturity === 'Developing') {
+                    summary += `Some value patterns present, but needs more focus on quantifying ROI and connecting to business outcomes.`;
+                } else if (call.valueSelling.maturity === 'Needs Coaching') {
+                    summary += `⚠️ RED FLAG: Call relied on compliance/feature selling instead of value-based approach. Coaching needed on discovery and business impact.`;
+                } else {
+                    summary += `Transactional conversation focused on product/features without sufficient discovery of customer pain points or business value discussion.`;
                 }
                 
                 return summary;
@@ -182,8 +330,10 @@
                                         attendees: row['Joined Attendees'] || '',
                                         valueSelling: vs,
                                         clariTopics: topics,
-                                        coachingInsights: getCoachingInsights(vs),
-                                        stageProgression: (() => {
+                                        coachingInsights: getCoachingInsights(vs, {
+                                            engagingQuestions: row['Engaging questions'] || 0,
+                                            talkListenRatio: row['Talk/listen ratio (%)'] || 0,
+                                            stageProgression: (() => {
                                             const b = row['Deal Stage before Call'];
                                             const a = row['Deal Stage after Call'];
                                             if (!b || !a || b === a) return 'No Change';
@@ -353,7 +503,19 @@
                             <div className="mt-3 p-4 bg-gray-50 rounded space-y-4">
                                 <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300">
                                     <p className="text-sm font-bold text-blue-900 mb-2">📝 QUICK SUMMARY:</p>
-                                    <p className="text-sm text-gray-900 leading-relaxed">{getSummary(call)}</p>
+                                    <p className="text-sm text-gray-900 leading-relaxed mb-3">{getSummary(call)}</p>
+                                    
+                                    {call.valueSelling.totalScore === 0 && (
+                                        <div className="mt-3 p-3 bg-yellow-50 rounded border border-yellow-300">
+                                            <p className="text-xs font-semibold text-yellow-900 mb-1">ℹ️ Why is the score 0?</p>
+                                            <p className="text-xs text-gray-700">
+                                                CSV files only contain call titles and metadata - not the actual conversation. 
+                                                The scoring looks for value-selling language like "what does it cost you?", "ROI", "efficiency gains", etc. 
+                                                If the call title doesn't contain these phrases, the score will be low. 
+                                                For better analysis, use the full call transcript or Clari's conversation intelligence data.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {call.coachingInsights.length > 0 && (
@@ -367,13 +529,34 @@
 
                                 {call.clariTopics.length > 0 && (
                                     <div className="p-3 bg-white rounded border border-gray-200">
-                                        <p className="text-xs font-semibold text-gray-700 mb-2">🤖 Clari AI Topics:</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {call.clariTopics.map((t, i) => (
-                                                <span key={i} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                                                    {t.name} ({t.score})
-                                                </span>
-                                            ))}
+                                        <p className="text-xs font-semibold text-gray-700 mb-3">🤖 Topics Discussed (Clari AI Analysis):</p>
+                                        <div className="space-y-2">
+                                            {call.clariTopics.map((t, i) => {
+                                                const explanations = {
+                                                    'Process': 'Procurement processes, approval workflows, and how to navigate internal stakeholder alignment',
+                                                    'Next Steps': 'Action items, follow-up tasks, and commitments made to advance the deal',
+                                                    'Timing': 'Timeline requirements, deadlines, urgency factors, and implementation schedules',
+                                                    'Pricing': 'Commercial terms, pricing discussion, contract negotiations, and investment details',
+                                                    'Competition': 'Competitive landscape - customer is evaluating multiple vendors and comparing solutions',
+                                                    'Customer Goals Pain Points': 'Customer business challenges, pain points, desired outcomes, and what success looks like',
+                                                    'Budget': 'Budget allocation, funding sources, financial approval processes, and ROI justification',
+                                                    'Authority': 'Decision-makers, stakeholders involved, and who has approval authority',
+                                                    'Agenda Setting': 'Meeting structure and objectives established at the beginning of the call'
+                                                };
+                                                return (
+                                                    <div key={i} className="p-2 bg-blue-50 rounded">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-bold">
+                                                                {t.score} mentions
+                                                            </span>
+                                                            <span className="font-semibold text-sm text-gray-900">{t.name}</span>
+                                                        </div>
+                                                        <p className="text-xs text-gray-600 ml-2">
+                                                            {explanations[t.name] || 'Discussion point identified by Clari AI'}
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
@@ -406,33 +589,52 @@
                                 )}
 
                                 <div className="p-3 bg-purple-50 rounded border-l-4 border-purple-500">
-                                    <p className="text-xs font-semibold text-purple-900 mb-2">✨ Value Patterns Detected:</p>
-                                    {Object.entries(call.valueSelling.patterns)
-                                        .filter(([_, p]) => p.count > 0)
-                                        .map(([key, p]) => (
-                                            <div key={key} className={`p-2 rounded mb-2 ${p.isNegative ? 'bg-red-50' : 'bg-white border border-green-200'}`}>
-                                                <div className="flex justify-between mb-1">
-                                                    <span className={`text-xs font-medium ${p.isNegative ? 'text-red-800' : 'text-green-800'}`}>
-                                                        {p.isNegative ? '⚠️' : '✓'} {p.name} ({p.count})
-                                                    </span>
-                                                    <span className={`text-xs font-bold ${p.isNegative ? 'text-red-600' : 'text-green-600'}`}>
-                                                        {p.score > 0 ? '+' : ''}{p.score} pts
-                                                    </span>
-                                                </div>
-                                                {p.matchedKeywords && p.matchedKeywords.length > 0 && (
-                                                    <div className="mt-1">
-                                                        <p className="text-xs text-gray-600 mb-1">Detected phrases:</p>
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {p.matchedKeywords.map((kw, i) => (
-                                                                <span key={i} className={`px-2 py-0.5 rounded text-xs ${p.isNegative ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                                                                    "{kw}"
-                                                                </span>
-                                                            ))}
+                                    <p className="text-xs font-semibold text-purple-900 mb-2">✨ Value Patterns Detected in Call Title/Metadata:</p>
+                                    {Object.entries(call.valueSelling.patterns).filter(([_, p]) => p.count > 0).length > 0 ? (
+                                        <div className="space-y-2">
+                                            {Object.entries(call.valueSelling.patterns)
+                                                .filter(([_, p]) => p.count > 0)
+                                                .map(([key, p]) => (
+                                                    <div key={key} className={`p-2 rounded ${p.isNegative ? 'bg-red-50 border border-red-200' : 'bg-white border border-green-200'}`}>
+                                                        <div className="flex justify-between mb-1">
+                                                            <span className={`text-xs font-medium ${p.isNegative ? 'text-red-800' : 'text-green-800'}`}>
+                                                                {p.isNegative ? '⚠️' : '✓'} {p.name} ({p.count})
+                                                            </span>
+                                                            <span className={`text-xs font-bold ${p.isNegative ? 'text-red-600' : 'text-green-600'}`}>
+                                                                {p.score > 0 ? '+' : ''}{p.score} pts
+                                                            </span>
                                                         </div>
+                                                        <p className="text-xs text-gray-600 mb-1">{p.explanation}</p>
+                                                        {p.matchedKeywords && p.matchedKeywords.length > 0 && (
+                                                            <div className="mt-1">
+                                                                <p className="text-xs text-gray-600 mb-1">Detected phrases:</p>
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {p.matchedKeywords.map((kw, i) => (
+                                                                        <span key={i} className={`px-2 py-0.5 rounded text-xs ${p.isNegative ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                                                            "{kw}"
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                )}
-                                            </div>
-                                        ))}
+                                                ))}
+                                        </div>
+                                    ) : (
+                                        <div className="p-3 bg-gray-50 rounded border border-gray-200">
+                                            <p className="text-xs text-gray-700 mb-2">
+                                                ⚠️ No value-selling language detected in the call title or metadata.
+                                            </p>
+                                            <p className="text-xs text-gray-600">
+                                                <strong>Note:</strong> CSV exports only contain call titles, not the full conversation. 
+                                                This call may have excellent value-selling in the actual recording, but it's not reflected in the metadata. 
+                                                The Clari topics above show what WAS discussed - use those insights along with the engagement metrics.
+                                            </p>
+                                            <p className="text-xs text-blue-600 mt-2">
+                                                💡 Click "View Recording" below to listen and assess value-selling quality directly.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {call.callLink && (
@@ -460,6 +662,17 @@
                                 </div>
                                 <button onClick={() => { setData(null); setAnalysis(null); }} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium">Upload New</button>
                             </div>
+                            
+                            {analysis.overview.avgScore === 0 && (
+                                <div className="mt-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
+                                    <p className="text-xs font-semibold text-blue-900 mb-1">ℹ️ About the Scoring:</p>
+                                    <p className="text-xs text-gray-700">
+                                        CSV exports contain limited text (call titles only). Scores are based on value-selling phrases in titles like "discovery", "ROI discussion", "efficiency review", etc. 
+                                        Use the <strong>Clari Topics, Engagement metrics, and Deal Progression</strong> below for call quality insights. 
+                                        For detailed value-selling analysis, review the actual call recordings.
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-4 gap-6 mb-6">
