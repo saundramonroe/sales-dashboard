@@ -223,6 +223,11 @@
             };
 
             const getSummary = (call) => {
+                // If this is a transcript with full text, return shorter summary
+                if (call.hasFullTranscript) {
+                    return `Transcript analyzed: ${call.valueSelling.totalScore} value-selling points detected. ${call.valueSelling.maturity} level conversation. See narrative summary above for full details.`;
+                }
+                
                 const topics = call.clariTopics || [];
                 const topicNames = topics.map(t => t.name);
                 
@@ -293,6 +298,59 @@
                 }
                 
                 return summary;
+            };
+
+            const parseTranscript = (text, filename) => {
+                const lines = text.split('\n');
+                const speakers = [];
+                let currentSpeaker = null;
+                let currentText = '';
+
+                lines.forEach(line => {
+                    const speakerMatch = line.match(/^>>(.+?)[\t\s]+(\d{2}:\d{2})/);
+                    if (speakerMatch) {
+                        if (currentSpeaker) {
+                            speakers.push({ name: currentSpeaker, text: currentText.trim() });
+                        }
+                        currentSpeaker = speakerMatch[1].trim();
+                        currentText = '';
+                    } else if (line.trim()) {
+                        currentText += (currentText ? ' ' : '') + line.trim();
+                    }
+                });
+
+                if (currentSpeaker) {
+                    speakers.push({ name: currentSpeaker, text: currentText.trim() });
+                }
+
+                const fullText = speakers.map(s => s.text).join(' ');
+                const vs = analyzeText(fullText);
+                
+                // Generate rich narrative from transcript
+                const speakerNames = [...new Set(speakers.map(s => s.name))];
+                const narrative = `The meeting involved ${speakerNames.join(', ')} discussing ${filename.replace('.txt', '')}. ${fullText.substring(0, 400)}...`;
+
+                return {
+                    id: filename,
+                    callTitle: filename.replace('.txt', ''),
+                    account: filename.split('-')[0] || 'Unknown',
+                    repName: speakerNames[0] || 'Unknown',
+                    valueSelling: vs,
+                    fullText: fullText,
+                    narrativeSummary: narrative,
+                    attendees: speakerNames.join(', '),
+                    type: 'transcript',
+                    hasFullTranscript: true,
+                    clariTopics: [],
+                    engagingQuestions: 0,
+                    talkListenRatio: 0,
+                    dealStageBefore: '',
+                    dealStageAfter: '',
+                    stageProgression: 'No Change',
+                    durationMinutes: 0,
+                    callLink: '',
+                    coachingInsights: getCoachingInsights(vs, { engagingQuestions: 0, talkListenRatio: 0, stageProgression: 'No Change' })
+                };
             };
 
             const handleUpload = async (e) => {
@@ -428,11 +486,13 @@
                                 )}
 
                                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer">
-                                    <input type="file" accept=".csv" onChange={handleUpload} className="hidden" id="upload" />
+                                    <input type="file" accept=".csv,.txt" multiple onChange={handleUpload} className="hidden" id="upload" />
                                     <label htmlFor="upload" className="cursor-pointer">
                                         <div className="w-16 h-16 text-gray-400 mx-auto mb-4"><Upload /></div>
-                                        <p className="text-xl font-medium text-gray-700 mb-2">Upload CSV File</p>
-                                        <p className="text-sm text-gray-500">Click to browse or drag and drop</p>
+                                        <p className="text-xl font-medium text-gray-700 mb-2">Upload CSV or TXT Files</p>
+                                        <p className="text-sm text-gray-500">CSV: Clari export for bulk analysis</p>
+                                        <p className="text-sm text-gray-500">TXT: Call transcripts for detailed summaries</p>
+                                        <p className="text-xs text-gray-400 mt-2">You can select multiple TXT files at once</p>
                                     </label>
                                 </div>
 
@@ -657,7 +717,11 @@
                                     <div className="w-8 h-8 text-blue-600"><Award /></div>
                                     <div>
                                         <h1 className="text-2xl font-bold text-gray-900">Anaconda Sales Intelligence</h1>
-                                        <p className="text-sm text-gray-600">{data.length} calls • Avg Score: <span className="font-bold text-blue-600">{analysis.overview.avgScore}</span></p>
+                                        <p className="text-sm text-gray-600">
+                                            {data.length} {data[0]?.type === 'transcript' ? 'transcripts' : 'calls'} • 
+                                            Avg Score: <span className="font-bold text-blue-600">{analysis.overview.avgScore}</span>
+                                            {data[0]?.type === 'transcript' && <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">📝 Full Transcripts</span>}
+                                        </p>
                                     </div>
                                 </div>
                                 <button onClick={() => { setData(null); setAnalysis(null); }} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium">Upload New</button>
