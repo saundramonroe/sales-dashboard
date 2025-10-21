@@ -122,6 +122,65 @@
                 const topics = call.clariTopics || [];
                 const topicNames = topics.map(t => t.name);
                 
+                // Generate executive summary
+                let executiveSummary = '';
+                let callType = '';
+                
+                // Determine call type
+                if (call.stageProgression === 'Advanced') {
+                    callType = 'Productive call that moved the deal forward';
+                } else if (call.stageProgression === 'Regressed') {
+                    callType = 'Challenging call where the deal moved backward';
+                } else if (call.dealStageAfter && call.dealStageAfter.includes('Discovery')) {
+                    callType = 'Discovery call';
+                } else if (call.dealStageAfter && call.dealStageAfter.includes('Negotiation')) {
+                    callType = 'Negotiation call';
+                } else if (topicNames.includes('Next Steps')) {
+                    callType = 'Action-oriented call';
+                } else {
+                    callType = 'General discussion';
+                }
+                
+                // Build narrative summary
+                executiveSummary = `${callType} with ${call.account}${call.opportunity ? ` regarding ${call.opportunity}` : ''}.`;
+                
+                // Add topic summary
+                if (topics.length > 0) {
+                    const topicsSummary = topics.slice(0, 4).map(t => `${t.name} (${t.score} mentions)`).join(', ');
+                    executiveSummary += ` The conversation focused on: ${topicsSummary}.`;
+                }
+                
+                // Add engagement context
+                if (call.engagingQuestions > 0 && call.talkListenRatio > 0) {
+                    if (call.engagingQuestions >= 5 && call.talkListenRatio >= 40 && call.talkListenRatio <= 60) {
+                        executiveSummary += ` Good dialogue with ${call.engagingQuestions} questions asked and balanced participation (${call.talkListenRatio}% rep talk time).`;
+                    } else if (call.engagingQuestions < 3) {
+                        executiveSummary += ` Limited discovery with only ${call.engagingQuestions} questions asked.`;
+                    } else if (call.talkListenRatio > 70) {
+                        executiveSummary += ` Rep-dominated conversation (${call.talkListenRatio}% talk time) with ${call.engagingQuestions} questions asked.`;
+                    } else {
+                        executiveSummary += ` ${call.engagingQuestions} questions asked with ${call.talkListenRatio}% rep talk time.`;
+                    }
+                }
+                
+                // Add deal progression
+                if (call.stageProgression === 'Advanced') {
+                    executiveSummary += ` ✅ Deal advanced from ${call.dealStageBefore} to ${call.dealStageAfter}.`;
+                } else if (call.stageProgression === 'Regressed') {
+                    executiveSummary += ` ⚠️ Deal moved backward from ${call.dealStageBefore} to ${call.dealStageAfter}.`;
+                } else if (call.dealStageAfter) {
+                    executiveSummary += ` Deal remains in ${call.dealStageAfter} stage.`;
+                }
+                
+                // Add value-selling context
+                if (call.valueSelling.maturity === 'Master') {
+                    executiveSummary += ` Excellent value-based selling demonstrated.`;
+                } else if (call.valueSelling.maturity === 'Needs Coaching') {
+                    executiveSummary += ` Call focused on features/compliance rather than business value.`;
+                } else if (call.valueSelling.maturity === 'Transactional') {
+                    executiveSummary += ` Conversation was product-focused without sufficient discovery or value discussion.`;
+                }
+                
                 let callPurpose = '';
                 let discussionPoints = [];
                 let nextSteps = [];
@@ -180,10 +239,82 @@
                     discussionPoints.push(`Balanced dialogue (${call.talkListenRatio}% rep talk time) - good two-way conversation`);
                 }
                 
-                return { callPurpose, discussionPoints, nextSteps };
+                return { executiveSummary, callPurpose, discussionPoints, nextSteps };
             };
 
-            const generateValueDetectionSummary = (valueSelling) => {
+            const generateNarrativeSummary = (call, transcriptText) => {
+                if (!transcriptText || transcriptText.length < 100) {
+                    return null;
+                }
+                
+                // Extract key elements from transcript
+                const sentences = transcriptText.match(/[^.!?]+[.!?]+/g) || [];
+                
+                // Get attendees context
+                const attendeesList = call.attendees ? call.attendees.split(',').map(a => a.trim().split('@')[0]).join(', ') : 'the team';
+                
+                // Build narrative summary
+                let summary = `The meeting involved ${attendeesList} discussing ${call.callTitle || 'the project'}.`;
+                
+                // Add context from Clari topics
+                const topics = call.clariTopics || [];
+                if (topics.length > 0) {
+                    const mainTopics = topics.slice(0, 3).map(t => t.name.toLowerCase()).join(', ');
+                    summary += ` The conversation centered on ${mainTopics}.`;
+                }
+                
+                // Add key discussion points based on value patterns
+                const patterns = call.valueSelling.patterns;
+                const discussionPoints = [];
+                
+                if (patterns.customer_pain?.count > 0) {
+                    discussionPoints.push('challenges and pain points were identified');
+                }
+                if (patterns.quantified_impact?.count > 0) {
+                    discussionPoints.push('business impact and ROI were discussed');
+                }
+                if (patterns.time_to_value?.count > 0) {
+                    discussionPoints.push('timeline and urgency were emphasized');
+                }
+                if (patterns.problem_to_solution?.count > 0) {
+                    discussionPoints.push('solutions were proposed to address the identified issues');
+                }
+                
+                if (discussionPoints.length > 0) {
+                    summary += ` During the call, ${discussionPoints.join(', ')}.`;
+                }
+                
+                // Add deal context
+                if (call.dealStageAfter) {
+                    summary += ` The opportunity is currently in ${call.dealStageAfter} stage.`;
+                }
+                
+                // Add next steps if available
+                if (call.clariTopics?.some(t => t.name.includes('Next Steps'))) {
+                    summary += ' The team committed to follow-up actions to move the deal forward.';
+                }
+                
+                // Add engagement quality
+                if (call.engagingQuestions > 5) {
+                    summary += ` The discussion was highly engaging with ${call.engagingQuestions} discovery questions.`;
+                } else if (call.engagingQuestions < 2) {
+                    summary += ` Limited discovery occurred with only ${call.engagingQuestions} questions asked.`;
+                }
+                
+                return summary;
+            };
+
+            const generateTranscriptSummary = (transcriptText) => {
+                if (!transcriptText || transcriptText.length < 200) return null;
+                
+                // Extract first few meaningful sentences
+                const sentences = transcriptText.match(/[^.!?]+[.!?]+/g) || [];
+                const meaningfulSentences = sentences
+                    .filter(s => s.length > 50 && s.length < 200)
+                    .slice(0, 8);
+                
+                return meaningfulSentences.join(' ');
+            };
                 const detectedPatterns = [];
                 
                 Object.entries(valueSelling.patterns).forEach(([key, pattern]) => {
@@ -386,6 +517,17 @@
                                     </div>
                                 )}
 
+                                <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
+                                    <p className="text-sm font-semibold text-blue-900 mb-2">💡 Pro Tip: Get Better Summaries!</p>
+                                    <p className="text-xs text-gray-700 mb-2">
+                                        <strong>CSV files:</strong> Gives you scores, topics, and metadata<br/>
+                                        <strong>TXT transcript files:</strong> Generates detailed narrative summaries like: "The meeting involved [names] discussing [topic]. [Key points]. [Challenges]. [Commitments]."
+                                    </p>
+                                    <p className="text-xs text-gray-600">
+                                        📝 To get transcript TXT files from Clari: Go to the call → Click "Download" → Select "Transcript (TXT)"
+                                    </p>
+                                </div>
+
                                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer">
                                     <input type="file" accept=".csv,.txt" multiple onChange={handleFileUpload} className="hidden" id="file-upload" />
                                     <label htmlFor="file-upload" className="cursor-pointer">
@@ -467,6 +609,28 @@
 
                         {isExpanded && (
                             <div className="mt-3 p-4 bg-gray-50 rounded space-y-4">
+                                {/* NARRATIVE SUMMARY (if transcript available) */}
+                                {call.hasFullTranscript && call.fullText && (
+                                    <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border-2 border-purple-300">
+                                        <p className="text-sm font-bold text-purple-900 mb-3">📖 NARRATIVE CALL SUMMARY:</p>
+                                        <p className="text-sm text-gray-900 leading-relaxed mb-3">
+                                            {generateNarrativeSummary(call, call.fullText)}
+                                        </p>
+                                        <div className="mt-3 pt-3 border-t border-purple-200">
+                                            <p className="text-xs font-semibold text-purple-800 mb-2">Transcript Excerpt:</p>
+                                            <p className="text-xs text-gray-700 italic leading-relaxed">
+                                                {generateTranscriptSummary(call.fullText) || call.transcriptPreview}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* QUICK CALL SUMMARY */}
+                                <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300">
+                                    <p className="text-sm font-bold text-blue-900 mb-3">📝 QUICK CALL SUMMARY (TL;DR):</p>
+                                    <p className="text-sm text-gray-900 leading-relaxed">{detailedSummary.executiveSummary}</p>
+                                </div>
+
                                 {/* WHAT THIS CALL WAS ABOUT */}
                                 <div className="p-4 bg-white rounded-lg border-l-4 border-blue-500">
                                     <p className="text-sm font-bold text-blue-900 mb-2">📞 WHAT THIS CALL WAS ABOUT:</p>
