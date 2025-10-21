@@ -23,8 +23,11 @@
         const Star = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>);
         const Target = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>);
         const ThumbsDown = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>);
+        const Clock = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>);
         const ChevronDown = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>);
         const ChevronUp = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="18 15 12 9 6 15"/></svg>);
+        const Info = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>);
+        const Users = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>);
 
         const AnacondaSalesIntelligence = () => {
             const [data, setData] = useState(null);
@@ -32,20 +35,30 @@
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState(null);
             const [expandedCall, setExpandedCall] = useState(null);
-            const [fileType, setFileType] = useState(null);
+            const [activeView, setActiveView] = useState('overview');
 
             const valueSellingPatterns = {
-                discovery: { keywords: ['what does it cost', 'how much time', 'how many', 'what keeps you up', 'walk me through', 'help me understand', 'how long does it take', 'tell me about'], weight: 5, name: 'Discovery & Pain' },
-                quantified_impact: { keywords: ['reduction', 'efficiency', 'roi', 'npv', 'cost avoidance', 'cost savings', 'fte savings', 'save'], weight: 5, name: 'Quantified Impact' },
-                time_to_value: { keywords: ['weeks instead of months', 'pilot to production', 'time to market', 'faster time', 'quickly', 'expedite'], weight: 4, name: 'Time-to-Value' },
-                customer_pain: { keywords: ['problem', 'issue', 'challenge', 'difficulty', 'bottleneck', 'wild west', 'shadow it'], weight: 4, name: 'Customer Pain' },
-                problem_to_solution: { keywords: ['eliminate bottleneck', 'solution', 'help', 'support', 'resolve'], weight: 4, name: 'Problem to Solution' },
-                strategic_value: { keywords: ['strategic', 'digital transformation', 'competitive advantage', 'innovation', 'business case'], weight: 3, name: 'Strategic Value' }
+                discovery: { keywords: ['what does it cost', 'how much time', 'how many', 'what keeps you up', 'walk me through', 'help me understand', 'how long does it take', 'tell me about'], weight: 5, name: 'Discovery & Pain', explanation: 'Questions that uncover customer pain points and quantify problems' },
+                quantified_impact: { keywords: ['reduction', 'efficiency', 'roi', 'npv', 'cost avoidance', 'cost savings', 'fte savings', 'save'], weight: 5, name: 'Quantified Impact', explanation: 'Specific numbers showing business value' },
+                time_to_value: { keywords: ['weeks instead of months', 'pilot to production', 'time to market', 'faster time', 'quickly', 'expedite', 'timeline', 'deadline'], weight: 4, name: 'Time-to-Value', explanation: 'Discussion of speed and acceleration' },
+                customer_pain: { keywords: ['problem', 'issue', 'challenge', 'difficulty', 'bottleneck', 'wild west', 'shadow it', 'pilot purgatory', 'stuck in pilot'], weight: 4, name: 'Customer Pain', explanation: 'Specific customer challenges mentioned' },
+                problem_to_solution: { keywords: ['eliminate bottleneck', 'gatekeepers to enablers', 'solution', 'help', 'support', 'resolve'], weight: 4, name: 'Problem to Solution', explanation: 'Connecting problems to solutions' },
+                strategic_value: { keywords: ['strategic', 'digital transformation', 'competitive advantage', 'market leadership', 'innovation', 'business case', 'investment'], weight: 3, name: 'Strategic Value', explanation: 'Executive-level strategic value' },
+                outcome_questions: { keywords: ['what would it mean', 'what could you do', 'what would you build', 'what is the risk', 'what if this continues'], weight: 4, name: 'Outcome Questions', explanation: 'Forward-looking questions about outcomes' },
+                value_connection: { keywords: ['which means you can', 'so you can', 'enabling you to', 'translates to', 'results in', 'business impact'], weight: 3, name: 'Value Translation', explanation: 'Bridging features to business value' }
             };
 
             const negativePatterns = {
-                feature_selling: { keywords: ['just use', 'simply use', 'just install', 'conda-forge alone'], weight: -3, name: 'Feature Selling' },
-                compliance_selling: { keywords: ['out of compliance', 'you need to buy', 'mandatory', 'license violation'], weight: -5, name: 'Compliance Selling' }
+                feature_selling: { keywords: ['just use', 'simply use', 'just install', 'conda-forge alone', 'community repositories'], weight: -3, name: 'Feature Selling', explanation: 'Leading with features instead of value' },
+                compliance_selling: { keywords: ['out of compliance', 'you need to buy', 'mandatory', 'license violation', 'terms of service', 'forced to upgrade'], weight: -5, name: 'Compliance Selling', explanation: 'Using fear/compliance as motivator' }
+            };
+
+            const maturityExplanations = {
+                'Master': { description: 'Excellent value-based selling with multiple discovery questions, quantified business impact, and customer-focused language', color: 'text-green-600', icon: '🌟' },
+                'Proficient': { description: 'Good value selling with some discovery and business impact discussion, room for improvement', color: 'text-blue-600', icon: '✓' },
+                'Developing': { description: 'Starting to use value language but missing key elements like discovery questions or quantified impact', color: 'text-yellow-600', icon: '⚡' },
+                'Transactional': { description: 'Product/feature focused conversation with minimal value discussion. Needs more discovery, pain identification, and business impact.', color: 'text-gray-600', icon: '○' },
+                'Needs Coaching': { description: 'Red flags detected: Leading with compliance/fear or heavy feature dumping without value context. Requires immediate coaching.', color: 'text-red-600', icon: '⚠️' }
             };
 
             const analyzeText = (text) => {
@@ -57,7 +70,7 @@
                     pattern.keywords.forEach(keyword => {
                         if (textLower.includes(keyword)) count++;
                     });
-                    results[key] = { name: pattern.name, count, score: count * pattern.weight };
+                    results[key] = { name: pattern.name, count, score: count * pattern.weight, weight: pattern.weight, explanation: pattern.explanation };
                 });
 
                 Object.entries(negativePatterns).forEach(([key, pattern]) => {
@@ -65,7 +78,7 @@
                     pattern.keywords.forEach(keyword => {
                         if (textLower.includes(keyword)) count++;
                     });
-                    results[key] = { name: pattern.name, count, score: count * pattern.weight, isNegative: true };
+                    results[key] = { name: pattern.name, count, score: count * pattern.weight, weight: pattern.weight, isNegative: true, explanation: pattern.explanation };
                 });
 
                 const totalScore = Object.values(results).reduce((sum, r) => sum + r.score, 0);
@@ -78,44 +91,62 @@
                 else if (totalScore >= 3) maturity = 'Developing';
                 else if (negativeScore > positiveScore) maturity = 'Needs Coaching';
 
-                return { patterns: results, totalScore, maturity, isHighValue: totalScore >= 5 };
+                return { patterns: results, totalScore, positiveScore, negativeScore, maturity, isHighValue: totalScore >= 5, hasNegativePatterns: negativeScore > 0 };
             };
 
-            const parseTranscript = (text, filename) => {
-                const lines = text.split('\n');
-                const speakers = [];
-                let currentSpeaker = null;
-                let currentText = '';
+            const generateCoachingInsights = (valueSelling) => {
+                const insights = [];
+                const maturity = valueSelling.maturity;
+                
+                if (maturity === 'Needs Coaching') {
+                    if (valueSelling.hasNegativePatterns) {
+                        insights.push('🚨 RED FLAG: Detected compliance/feature selling. Rep is leading with "you must buy" or technical features instead of discovering business value.');
+                    }
+                    insights.push('Focus coaching on: Discovery questions, understanding customer pain, and quantifying business impact.');
+                } else if (maturity === 'Transactional') {
+                    if (valueSelling.patterns.discovery?.count === 0) {
+                        insights.push('MISSING: No discovery questions detected. Rep should ask "What does that cost you?" or "How much time does that take?"');
+                    }
+                    if (valueSelling.patterns.quantified_impact?.count === 0) {
+                        insights.push('MISSING: No quantified business impact. Rep should reference ROI, cost savings, or efficiency gains.');
+                    }
+                } else if (maturity === 'Developing') {
+                    insights.push('GOOD START: Some value patterns present, but needs more depth and consistency.');
+                } else if (maturity === 'Proficient') {
+                    insights.push('STRONG: Good value-based selling. Continue reinforcing these behaviors.');
+                } else if (maturity === 'Master') {
+                    insights.push('🌟 EXEMPLAR: Excellent value-based selling. Use this call as a training example.');
+                }
+                
+                return insights;
+            };
 
-                lines.forEach(line => {
-                    const speakerMatch = line.match(/^>>(.+?)[\t\s]+(\d{2}:\d{2})/);
-                    if (speakerMatch) {
-                        if (currentSpeaker) {
-                            speakers.push({ name: currentSpeaker, text: currentText.trim() });
-                        }
-                        currentSpeaker = speakerMatch[1].trim();
-                        currentText = '';
-                    } else if (line.trim()) {
-                        currentText += (currentText ? ' ' : '') + line.trim();
+            const extractClariTopics = (row) => {
+                const topics = [];
+                const topicColumns = [
+                    'Competition (Topic)', 'Customer Goals Pain Points (Topic)', 'NEXT STEPS - AI DETECTED (Topic)',
+                    'Agenda Setting (Topic)', 'PRICING - AI DETECTED (Topic)', 'Authority (Topic)',
+                    'Budget (Topic)', 'Timing (Topic)', 'Process (Topic)'
+                ];
+                
+                topicColumns.forEach(col => {
+                    if (row[col] && row[col] > 0) {
+                        const topicName = col.replace(' (Topic)', '').replace('NEXT STEPS - AI DETECTED', 'Next Steps').replace('PRICING - AI DETECTED', 'Pricing');
+                        topics.push({ name: topicName, score: row[col] });
                     }
                 });
+                
+                return topics.sort((a, b) => b.score - a.score);
+            };
 
-                if (currentSpeaker) {
-                    speakers.push({ name: currentSpeaker, text: currentText.trim() });
-                }
-
-                const fullText = speakers.map(s => s.text).join(' ');
-                const analysis = analyzeText(fullText);
-
-                return {
-                    id: filename,
-                    callTitle: filename.replace('.txt', ''),
-                    account: filename.split('-')[0] || 'Unknown',
-                    repName: speakers.length > 0 ? speakers[0].name : 'Unknown',
-                    valueSelling: analysis,
-                    fullText: fullText.substring(0, 500) + '...',
-                    type: 'transcript'
-                };
+            const getStageProgression = (before, after) => {
+                if (!before || !after || before === after) return 'No Change';
+                const stages = ['Discovery', 'Qualification', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+                const beforeIdx = stages.findIndex(s => before.includes(s));
+                const afterIdx = stages.findIndex(s => after.includes(s));
+                if (beforeIdx < afterIdx && !after.includes('Lost')) return 'Advanced';
+                if (beforeIdx > afterIdx || after.includes('Lost')) return 'Regressed';
+                return 'Changed';
             };
 
             const handleFileUpload = async (event) => {
@@ -130,16 +161,12 @@
                     const fileName = firstFile.name.toLowerCase();
 
                     if (fileName.endsWith('.csv')) {
-                        setFileType('csv');
                         const text = await firstFile.text();
                         
                         Papa.parse(text, {
                             header: true,
                             skipEmptyLines: true,
                             complete: (results) => {
-                                console.log('Parsed CSV rows:', results.data.length);
-                                console.log('First row:', results.data[0]);
-
                                 const processed = results.data
                                     .filter(row => row['Call title'] || row['Account Name'])
                                     .map((row, idx) => {
@@ -149,7 +176,9 @@
                                             row['Opportunity Name'] || ''
                                         ].join(' ');
 
-                                        const analysis = analyzeText(textToAnalyze);
+                                        const valueSelling = analyzeText(textToAnalyze);
+                                        const clariTopics = extractClariTopics(row);
+                                        const coachingInsights = generateCoachingInsights(valueSelling);
 
                                         return {
                                             id: idx,
@@ -158,22 +187,28 @@
                                             repName: row['Rep Name'] || 'Unknown Rep',
                                             opportunity: row['Opportunity Name'] || '',
                                             callLink: row['Call Link'] || '',
-                                            valueSelling: analysis,
+                                            durationMinutes: Math.round((row['Duration (in Seconds)'] || 0) / 60),
+                                            talkListenRatio: row['Talk/listen ratio (%)'] || 0,
+                                            interactivity: row['Interactivity'] || 0,
+                                            engagingQuestions: row['Engaging questions'] || 0,
+                                            dealStageBefore: row['Deal Stage before Call'] || '',
+                                            dealStageAfter: row['Deal Stage after Call'] || '',
+                                            stageProgression: getStageProgression(row['Deal Stage before Call'], row['Deal Stage after Call']),
+                                            attendees: row['Joined Attendees'] || '',
+                                            valueSelling,
+                                            clariTopics,
+                                            coachingInsights,
                                             type: 'csv'
                                         };
                                     });
 
-                                console.log('Processed calls:', processed.length);
-
                                 if (processed.length === 0) {
-                                    setError('No valid data found in CSV. Make sure it has "Call title" and "Account Name" columns.');
+                                    setError('No valid data found in CSV.');
                                     setLoading(false);
                                     return;
                                 }
 
                                 setData(processed);
-                                
-                                // Small delay to ensure state updates properly
                                 setTimeout(() => {
                                     generateAnalysis(processed);
                                     setLoading(false);
@@ -184,28 +219,8 @@
                                 setLoading(false);
                             }
                         });
-                    } else if (fileName.endsWith('.txt')) {
-                        setFileType('txt');
-                        const transcripts = await Promise.all(
-                            files.map(async (file) => {
-                                const text = await file.text();
-                                return parseTranscript(text, file.name);
-                            })
-                        );
-
-                        console.log('Processed transcripts:', transcripts.length);
-                        setData(transcripts);
-                        
-                        setTimeout(() => {
-                            generateAnalysis(transcripts);
-                            setLoading(false);
-                        }, 100);
-                    } else {
-                        setError('Please upload CSV or TXT files only');
-                        setLoading(false);
                     }
                 } catch (err) {
-                    console.error('Error:', err);
                     setError('Error reading file: ' + err.message);
                     setLoading(false);
                 }
@@ -214,50 +229,23 @@
             const generateAnalysis = (records) => {
                 const total = records.length;
                 const avgScore = records.reduce((sum, r) => sum + r.valueSelling.totalScore, 0) / total;
+                const avgEngagement = records.reduce((sum, r) => sum + (r.engagingQuestions || 0), 0) / total;
                 
                 const maturityDist = {};
                 records.forEach(r => {
-                    const m = r.valueSelling.maturity;
-                    maturityDist[m] = (maturityDist[m] || 0) + 1;
-                });
-
-                const repPerf = {};
-                records.forEach(r => {
-                    const rep = r.repName;
-                    if (!repPerf[rep]) {
-                        repPerf[rep] = { calls: 0, totalScore: 0, scores: [], masterCalls: 0, proficientCalls: 0, developingCalls: 0, transactionalCalls: 0, needsCoaching: 0, highValueCalls: 0 };
-                    }
-                    repPerf[rep].calls++;
-                    repPerf[rep].totalScore += r.valueSelling.totalScore;
-                    repPerf[rep].scores.push(r.valueSelling.totalScore);
-                    
-                    const m = r.valueSelling.maturity;
-                    if (m === 'Master') repPerf[rep].masterCalls++;
-                    else if (m === 'Proficient') repPerf[rep].proficientCalls++;
-                    else if (m === 'Developing') repPerf[rep].developingCalls++;
-                    else if (m === 'Transactional') repPerf[rep].transactionalCalls++;
-                    else if (m === 'Needs Coaching') repPerf[rep].needsCoaching++;
-                    
-                    if (r.valueSelling.isHighValue) repPerf[rep].highValueCalls++;
-                });
-
-                Object.keys(repPerf).forEach(rep => {
-                    const stats = repPerf[rep];
-                    stats.avgScore = Math.round(stats.totalScore / stats.calls);
-                    stats.highScore = Math.max(...stats.scores);
-                    stats.lowScore = Math.min(...stats.scores);
+                    maturityDist[r.valueSelling.maturity] = (maturityDist[r.valueSelling.maturity] || 0) + 1;
                 });
 
                 setAnalysis({
                     overview: {
                         total,
                         avgScore: Math.round(avgScore),
+                        avgEngagement: Math.round(avgEngagement),
                         masterCallsCount: records.filter(r => r.valueSelling.maturity === 'Master').length,
                         highValueCount: records.filter(r => r.valueSelling.isHighValue).length,
                         needsCoachingCount: records.filter(r => r.valueSelling.maturity === 'Needs Coaching').length
                     },
                     maturityDistribution: maturityDist,
-                    repPerformance: repPerf,
                     topPerformers: [...records].sort((a, b) => b.valueSelling.totalScore - a.valueSelling.totalScore).slice(0, 20)
                 });
             };
@@ -281,7 +269,7 @@
                                     <div className="w-8 h-8 text-blue-600"><Award /></div>
                                     <div>
                                         <h1 className="text-3xl font-bold text-gray-900">Anaconda Sales Intelligence</h1>
-                                        <p className="text-gray-600">Upload Clari CSV or call transcripts (TXT)</p>
+                                        <p className="text-gray-600">Upload Clari CSV or call transcripts</p>
                                     </div>
                                 </div>
 
@@ -293,19 +281,11 @@
                                 )}
 
                                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer">
-                                    <input
-                                        type="file"
-                                        accept=".csv,.txt"
-                                        multiple
-                                        onChange={handleFileUpload}
-                                        className="hidden"
-                                        id="file-upload"
-                                    />
+                                    <input type="file" accept=".csv,.txt" multiple onChange={handleFileUpload} className="hidden" id="file-upload" />
                                     <label htmlFor="file-upload" className="cursor-pointer">
                                         <div className="w-16 h-16 text-gray-400 mx-auto mb-4"><Upload /></div>
                                         <p className="text-xl font-medium text-gray-700 mb-2">Upload Files</p>
-                                        <p className="text-sm text-gray-500">CSV (Clari export) or TXT (transcripts)</p>
-                                        <p className="text-xs text-gray-400 mt-2">For TXT: You can select multiple files</p>
+                                        <p className="text-sm text-gray-500">CSV (Clari) or TXT (transcripts)</p>
                                     </label>
                                 </div>
 
@@ -323,6 +303,144 @@
                 );
             }
 
+            const CallCard = ({ call, index }) => {
+                const isExpanded = expandedCall === index;
+                const maturityInfo = maturityExplanations[call.valueSelling.maturity];
+
+                return (
+                    <div className="border-2 border-blue-200 rounded-lg p-4 bg-white mb-3">
+                        <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-lg font-bold text-blue-600">#{index + 1}</span>
+                                    <p className="font-semibold text-gray-900">{call.account}</p>
+                                </div>
+                                <p className="text-sm text-gray-600">{call.callTitle}</p>
+                                <p className="text-xs text-gray-500">Rep: {call.repName}</p>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-2xl font-bold text-green-600">{call.valueSelling.totalScore}</span>
+                                <p className="text-xs text-gray-600">score</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 mb-3 flex-wrap">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getMaturityColor(call.valueSelling.maturity)}`}>
+                                {maturityInfo.icon} {call.valueSelling.maturity}
+                            </span>
+                            {call.valueSelling.isHighValue && (
+                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">High-Value</span>
+                            )}
+                            {call.durationMinutes > 0 && (
+                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    <Clock className="w-3 h-3 inline mr-1" />{call.durationMinutes} min
+                                </span>
+                            )}
+                            {call.stageProgression && call.stageProgression !== 'No Change' && (
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                    call.stageProgression === 'Advanced' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}>{call.stageProgression}</span>
+                            )}
+                        </div>
+
+                        <div className="mb-3 p-3 bg-blue-50 rounded">
+                            <p className={`text-xs font-semibold ${maturityInfo.color} mb-1`}>
+                                <Info className="w-3 h-3 inline mr-1" />What "{call.valueSelling.maturity}" means:
+                            </p>
+                            <p className="text-xs text-gray-700">{maturityInfo.description}</p>
+                        </div>
+
+                        <button onClick={() => setExpandedCall(isExpanded ? null : index)} className="w-full text-left p-3 bg-blue-50 rounded hover:bg-blue-100 transition-colors">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-blue-900">📋 Call Summary</span>
+                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </div>
+                        </button>
+
+                        {isExpanded && (
+                            <div className="mt-3 p-4 bg-gray-50 rounded space-y-4">
+                                {call.coachingInsights && call.coachingInsights.length > 0 && (
+                                    <div className="p-3 bg-yellow-50 rounded border-l-4 border-yellow-500">
+                                        <p className="text-xs font-semibold text-yellow-900 mb-2">💡 COACHING INSIGHTS:</p>
+                                        {call.coachingInsights.map((insight, i) => (
+                                            <p key={i} className="text-sm text-gray-900 mb-1">• {insight}</p>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {call.clariTopics && call.clariTopics.length > 0 && (
+                                    <div>
+                                        <p className="text-xs font-semibold text-gray-700 mb-2">🤖 Clari AI Topics:</p>
+                                        <div className="flex flex-wrap gap-1">
+                                            {call.clariTopics.map((topic, i) => (
+                                                <span key={i} className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                                    {topic.name} ({topic.score})
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {(call.dealStageBefore || call.dealStageAfter) && (
+                                    <div>
+                                        <p className="text-xs font-semibold text-gray-700 mb-1">📈 Deal Progression:</p>
+                                        <p className="text-sm text-gray-900">
+                                            {call.dealStageBefore === call.dealStageAfter 
+                                                ? `Deal remained in ${call.dealStageAfter} stage`
+                                                : `${call.dealStageBefore} → ${call.dealStageAfter}`
+                                            }
+                                        </p>
+                                    </div>
+                                )}
+
+                                {(call.talkListenRatio > 0 || call.engagingQuestions > 0) && (
+                                    <div>
+                                        <p className="text-xs font-semibold text-gray-700 mb-1">💬 Engagement:</p>
+                                        <p className="text-sm text-gray-900">
+                                            {call.engagingQuestions > 0 && `${call.engagingQuestions} questions asked • `}
+                                            {call.talkListenRatio > 0 && `${call.talkListenRatio}% talk/listen ratio`}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {call.attendees && (
+                                    <div>
+                                        <p className="text-xs font-semibold text-gray-700 mb-1">👥 Attendees:</p>
+                                        <p className="text-xs text-gray-600">{call.attendees}</p>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-700 mb-2">✨ Value Patterns Detected:</p>
+                                    <div className="space-y-1">
+                                        {Object.entries(call.valueSelling.patterns)
+                                            .filter(([_, p]) => p.count > 0)
+                                            .map(([key, p]) => (
+                                                <div key={key} className={`p-2 rounded ${p.isNegative ? 'bg-red-50' : 'bg-green-50'}`}>
+                                                    <div className="flex justify-between items-start">
+                                                        <span className={`text-xs font-medium ${p.isNegative ? 'text-red-800' : 'text-green-800'}`}>
+                                                            {p.isNegative ? '⚠️' : '✓'} {p.name} ({p.count})
+                                                        </span>
+                                                        <span className={`text-xs ${p.isNegative ? 'text-red-600' : 'text-green-600'}`}>
+                                                            {p.score > 0 ? '+' : ''}{p.score} pts
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </div>
+
+                                {call.callLink && (
+                                    <a href={call.callLink} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline font-medium">
+                                        🎥 View recording
+                                    </a>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
             return (
                 <div className="min-h-screen bg-gray-50 p-8">
                     <div className="max-w-7xl mx-auto">
@@ -332,31 +450,21 @@
                                     <div className="w-8 h-8 text-blue-600"><Award /></div>
                                     <div>
                                         <h1 className="text-2xl font-bold text-gray-900">Anaconda Sales Intelligence</h1>
-                                        <p className="text-sm text-gray-600">
-                                            {data.length} {fileType === 'txt' ? 'transcripts' : 'calls'} • Avg Score: <span className="font-bold text-blue-600">{analysis.overview.avgScore}</span>
-                                        </p>
+                                        <p className="text-sm text-gray-600">{data.length} calls • Avg Score: <span className="font-bold text-blue-600">{analysis.overview.avgScore}</span></p>
                                     </div>
                                 </div>
-                                <button onClick={() => { setData(null); setAnalysis(null); setError(null); }} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium">
-                                    Upload New
-                                </button>
+                                <button onClick={() => { setData(null); setAnalysis(null); setError(null); }} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium">Upload New</button>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-4 gap-6 mb-6">
                             <div className="bg-white rounded-lg shadow p-6">
                                 <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-5 h-5 text-blue-600"><BarChart /></div>
-                                    <span className="text-sm text-gray-600">Average Score</span>
-                                </div>
-                                <p className="text-3xl font-bold text-blue-600">{analysis.overview.avgScore}</p>
-                            </div>
-                            <div className="bg-white rounded-lg shadow p-6">
-                                <div className="flex items-center gap-3 mb-2">
                                     <div className="w-5 h-5 text-green-600"><Star /></div>
                                     <span className="text-sm text-gray-600">Master Calls</span>
                                 </div>
                                 <p className="text-3xl font-bold text-gray-900">{analysis.overview.masterCallsCount}</p>
+                                <p className="text-xs text-gray-500 mt-1">{((analysis.overview.masterCallsCount / analysis.overview.total) * 100).toFixed(1)}%</p>
                             </div>
                             <div className="bg-white rounded-lg shadow p-6">
                                 <div className="flex items-center gap-3 mb-2">
@@ -364,6 +472,7 @@
                                     <span className="text-sm text-gray-600">High-Value</span>
                                 </div>
                                 <p className="text-3xl font-bold text-gray-900">{analysis.overview.highValueCount}</p>
+                                <p className="text-xs text-gray-500 mt-1">{((analysis.overview.highValueCount / analysis.overview.total) * 100).toFixed(1)}%</p>
                             </div>
                             <div className="bg-white rounded-lg shadow p-6">
                                 <div className="flex items-center gap-3 mb-2">
@@ -371,63 +480,63 @@
                                     <span className="text-sm text-gray-600">Needs Coaching</span>
                                 </div>
                                 <p className="text-3xl font-bold text-gray-900">{analysis.overview.needsCoachingCount}</p>
+                                <p className="text-xs text-gray-500 mt-1">{((analysis.overview.needsCoachingCount / analysis.overview.total) * 100).toFixed(1)}%</p>
+                            </div>
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-5 h-5 text-blue-600"><Users /></div>
+                                    <span className="text-sm text-gray-600">Engagement</span>
+                                </div>
+                                <p className="text-3xl font-bold text-gray-900">{analysis.overview.avgEngagement}</p>
+                                <p className="text-xs text-gray-500 mt-1">avg questions</p>
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-lg shadow p-6 mb-6">
-                            <h3 className="text-lg font-semibold mb-4">Maturity Distribution</h3>
-                            <div className="grid grid-cols-5 gap-4">
-                                {Object.entries(analysis.maturityDistribution).map(([maturity, count]) => (
-                                    <div key={maturity} className={`rounded-lg p-4 border-2 ${getMaturityColor(maturity)}`}>
-                                        <p className="text-sm font-medium mb-1">{maturity}</p>
-                                        <p className="text-3xl font-bold">{count}</p>
-                                        <p className="text-xs mt-1">{((count / analysis.overview.total) * 100).toFixed(1)}%</p>
-                                    </div>
+                        <div className="bg-white rounded-lg shadow mb-6 p-2">
+                            <div className="flex gap-2">
+                                {['overview', 'allCalls', 'topCalls'].map(view => (
+                                    <button key={view} onClick={() => setActiveView(view)} className={`px-4 py-2 rounded capitalize ${activeView === view ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                                        {view === 'allCalls' ? 'All Calls' : view === 'topCalls' ? 'Top Calls' : 'Overview'}
+                                    </button>
                                 ))}
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <h3 className="text-lg font-semibold mb-4">All {fileType === 'txt' ? 'Transcripts' : 'Calls'}</h3>
-                            <div className="space-y-3">
-                                {data.map((call) => (
-                                    <div key={call.id} className="border-2 border-blue-200 rounded-lg p-4">
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div className="flex-1">
-                                                <p className="font-semibold text-gray-900 text-lg">{call.account}</p>
-                                                <p className="text-sm text-gray-600">{call.callTitle}</p>
-                                                <p className="text-xs text-gray-500 mt-1">Rep: {call.repName}</p>
+                        {activeView === 'overview' && (
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h3 className="text-lg font-semibold mb-4">Maturity Distribution</h3>
+                                <div className="grid grid-cols-5 gap-4">
+                                    {Object.entries(analysis.maturityDistribution).map(([maturity, count]) => {
+                                        const info = maturityExplanations[maturity];
+                                        return (
+                                            <div key={maturity} className={`rounded-lg p-4 border-2 ${getMaturityColor(maturity)}`}>
+                                                <p className="text-sm font-medium mb-1">{info.icon} {maturity}</p>
+                                                <p className="text-3xl font-bold">{count}</p>
+                                                <p className="text-xs mt-1">{((count / analysis.overview.total) * 100).toFixed(1)}%</p>
                                             </div>
-                                            <div className="text-right">
-                                                <span className="text-3xl font-bold text-green-600">{call.valueSelling.totalScore}</span>
-                                                <p className="text-xs text-gray-600">score</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getMaturityColor(call.valueSelling.maturity)}`}>
-                                                {call.valueSelling.maturity}
-                                            </span>
-                                            {call.valueSelling.isHighValue && (
-                                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                                    High-Value
-                                                </span>
-                                            )}
-                                        </div>
-                                        {call.type === 'transcript' && call.fullText && (
-                                            <div className="mt-3 p-3 bg-gray-50 rounded">
-                                                <p className="text-xs text-gray-600">Preview:</p>
-                                                <p className="text-xs text-gray-700 mt-1">{call.fullText}</p>
-                                            </div>
-                                        )}
-                                        {call.callLink && (
-                                            <a href={call.callLink} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline mt-2 inline-block">
-                                                🎥 View Recording
-                                            </a>
-                                        )}
-                                    </div>
-                                ))}
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
+                        )}
+
+                        {activeView === 'allCalls' && (
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h3 className="text-lg font-semibold mb-4">All Calls with Summaries</h3>
+                                <div className="space-y-2">
+                                    {data.map((call, idx) => <CallCard key={idx} call={call} index={idx} />)}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeView === 'topCalls' && (
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h3 className="text-lg font-semibold mb-4">Top 20 Calls</h3>
+                                <div className="space-y-2">
+                                    {analysis.topPerformers.map((call, idx) => <CallCard key={idx} call={call} index={idx} />)}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             );
