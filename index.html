@@ -64,21 +64,45 @@
             const analyzeText = (text) => {
                 const textLower = (text || '').toLowerCase();
                 const results = {};
+                const matchedKeywords = {};
                 
                 Object.entries(valueSellingPatterns).forEach(([key, pattern]) => {
                     let count = 0;
+                    const foundKeywords = [];
                     pattern.keywords.forEach(keyword => {
-                        if (textLower.includes(keyword)) count++;
+                        if (textLower.includes(keyword)) {
+                            count++;
+                            foundKeywords.push(keyword);
+                        }
                     });
-                    results[key] = { name: pattern.name, count, score: count * pattern.weight, weight: pattern.weight, explanation: pattern.explanation };
+                    results[key] = { 
+                        name: pattern.name, 
+                        count, 
+                        score: count * pattern.weight, 
+                        weight: pattern.weight, 
+                        explanation: pattern.explanation,
+                        matchedKeywords: foundKeywords
+                    };
                 });
 
                 Object.entries(negativePatterns).forEach(([key, pattern]) => {
                     let count = 0;
+                    const foundKeywords = [];
                     pattern.keywords.forEach(keyword => {
-                        if (textLower.includes(keyword)) count++;
+                        if (textLower.includes(keyword)) {
+                            count++;
+                            foundKeywords.push(keyword);
+                        }
                     });
-                    results[key] = { name: pattern.name, count, score: count * pattern.weight, weight: pattern.weight, isNegative: true, explanation: pattern.explanation };
+                    results[key] = { 
+                        name: pattern.name, 
+                        count, 
+                        score: count * pattern.weight, 
+                        weight: pattern.weight, 
+                        isNegative: true, 
+                        explanation: pattern.explanation,
+                        matchedKeywords: foundKeywords
+                    };
                 });
 
                 const totalScore = Object.values(results).reduce((sum, r) => sum + r.score, 0);
@@ -94,7 +118,89 @@
                 return { patterns: results, totalScore, positiveScore, negativeScore, maturity, isHighValue: totalScore >= 5, hasNegativePatterns: negativeScore > 0 };
             };
 
-            const generateCoachingInsights = (valueSelling) => {
+            const generateDetailedSummary = (call) => {
+                const topics = call.clariTopics || [];
+                const topicNames = topics.map(t => t.name);
+                
+                let callPurpose = '';
+                let discussionPoints = [];
+                let nextSteps = [];
+                
+                // Determine call purpose from topics
+                if (topicNames.includes('Next Steps')) {
+                    callPurpose = 'Action-oriented call focused on moving the deal forward with clear next steps.';
+                }
+                if (topicNames.includes('Pricing')) {
+                    callPurpose = callPurpose ? callPurpose + ' Commercial discussion including pricing and proposal details.' : 'Commercial negotiation focused on pricing, terms, and contract details.';
+                }
+                if (topicNames.includes('Competition')) {
+                    callPurpose = callPurpose ? callPurpose + ' Competitive situation being evaluated.' : 'Competitive evaluation - customer comparing multiple vendors.';
+                }
+                if (topicNames.includes('Customer Goals Pain Points')) {
+                    callPurpose = callPurpose ? callPurpose + ' Discovery of customer needs and challenges.' : 'Discovery call to understand customer goals, pain points, and requirements.';
+                }
+                if (topicNames.includes('Process')) {
+                    discussionPoints.push('Discussion of procurement process, approval workflows, and internal stakeholder alignment');
+                }
+                if (topicNames.includes('Timing')) {
+                    discussionPoints.push('Timeline and deadline requirements were discussed, urgency factors identified');
+                }
+                if (topicNames.includes('Budget')) {
+                    discussionPoints.push('Budget allocation, funding sources, and financial approval process covered');
+                }
+                if (topicNames.includes('Authority')) {
+                    discussionPoints.push('Decision-making authority and key stakeholders identified');
+                }
+                
+                if (!callPurpose) {
+                    callPurpose = `${call.callTitle} - General discussion with ${call.account}`;
+                }
+                
+                // Generate next steps based on topics
+                if (topicNames.includes('Next Steps')) {
+                    nextSteps.push('Follow-up actions were defined and agreed upon');
+                    if (topicNames.includes('Pricing')) {
+                        nextSteps.push('Proposal or pricing information to be shared');
+                    }
+                }
+                if (call.stageProgression === 'Advanced') {
+                    nextSteps.push(`Deal progressed forward: ${call.dealStageBefore} → ${call.dealStageAfter}`);
+                }
+                
+                // Add engagement-based insights
+                if (call.engagingQuestions > 5) {
+                    discussionPoints.push(`High engagement: ${call.engagingQuestions} discovery questions asked by rep`);
+                } else if (call.engagingQuestions < 2) {
+                    discussionPoints.push(`Low question activity (${call.engagingQuestions} questions) - limited discovery`);
+                }
+                
+                if (call.talkListenRatio > 70) {
+                    discussionPoints.push(`Rep dominated conversation (${call.talkListenRatio}% talk time) - may need more customer input`);
+                } else if (call.talkListenRatio >= 40 && call.talkListenRatio <= 60) {
+                    discussionPoints.push(`Balanced dialogue (${call.talkListenRatio}% rep talk time) - good two-way conversation`);
+                }
+                
+                return { callPurpose, discussionPoints, nextSteps };
+            };
+
+            const generateValueDetectionSummary = (valueSelling) => {
+                const detectedPatterns = [];
+                
+                Object.entries(valueSelling.patterns).forEach(([key, pattern]) => {
+                    if (pattern.count > 0 && pattern.matchedKeywords && pattern.matchedKeywords.length > 0) {
+                        detectedPatterns.push({
+                            name: pattern.name,
+                            count: pattern.count,
+                            score: pattern.score,
+                            keywords: pattern.matchedKeywords,
+                            isNegative: pattern.isNegative || false,
+                            explanation: pattern.explanation
+                        });
+                    }
+                });
+                
+                return detectedPatterns;
+            };
                 const insights = [];
                 const maturity = valueSelling.maturity;
                 
@@ -306,6 +412,8 @@
             const CallCard = ({ call, index }) => {
                 const isExpanded = expandedCall === index;
                 const maturityInfo = maturityExplanations[call.valueSelling.maturity];
+                const detailedSummary = generateDetailedSummary(call);
+                const valueDetection = generateValueDetectionSummary(call.valueSelling);
 
                 return (
                     <div className="border-2 border-blue-200 rounded-lg p-4 bg-white mb-3">
@@ -352,28 +460,101 @@
 
                         <button onClick={() => setExpandedCall(isExpanded ? null : index)} className="w-full text-left p-3 bg-blue-50 rounded hover:bg-blue-100 transition-colors">
                             <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-blue-900">📋 Call Summary</span>
+                                <span className="text-sm font-medium text-blue-900">📋 Detailed Call Summary & Analysis</span>
                                 {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                             </div>
                         </button>
 
                         {isExpanded && (
                             <div className="mt-3 p-4 bg-gray-50 rounded space-y-4">
-                                {call.coachingInsights && call.coachingInsights.length > 0 && (
-                                    <div className="p-3 bg-yellow-50 rounded border-l-4 border-yellow-500">
-                                        <p className="text-xs font-semibold text-yellow-900 mb-2">💡 COACHING INSIGHTS:</p>
-                                        {call.coachingInsights.map((insight, i) => (
-                                            <p key={i} className="text-sm text-gray-900 mb-1">• {insight}</p>
-                                        ))}
+                                {/* WHAT THIS CALL WAS ABOUT */}
+                                <div className="p-4 bg-white rounded-lg border-l-4 border-blue-500">
+                                    <p className="text-sm font-bold text-blue-900 mb-2">📞 WHAT THIS CALL WAS ABOUT:</p>
+                                    <p className="text-sm text-gray-900 mb-3">{detailedSummary.callPurpose}</p>
+                                    
+                                    {detailedSummary.discussionPoints.length > 0 && (
+                                        <div className="mt-3">
+                                            <p className="text-xs font-semibold text-gray-700 mb-2">Key Discussion Points:</p>
+                                            <ul className="space-y-1">
+                                                {detailedSummary.discussionPoints.map((point, i) => (
+                                                    <li key={i} className="text-xs text-gray-700">• {point}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* NEXT STEPS */}
+                                {detailedSummary.nextSteps.length > 0 && (
+                                    <div className="p-4 bg-green-50 rounded-lg border-l-4 border-green-500">
+                                        <p className="text-sm font-bold text-green-900 mb-2">✅ NEXT STEPS:</p>
+                                        <ul className="space-y-1">
+                                            {detailedSummary.nextSteps.map((step, i) => (
+                                                <li key={i} className="text-sm text-gray-900">• {step}</li>
+                                            ))}
+                                        </ul>
                                     </div>
                                 )}
 
+                                {/* HOW VALUE WAS DETECTED */}
+                                {valueDetection.length > 0 && (
+                                    <div className="p-4 bg-purple-50 rounded-lg border-l-4 border-purple-500">
+                                        <p className="text-sm font-bold text-purple-900 mb-3">🎯 HOW VALUE-SELLING WAS DETECTED:</p>
+                                        <div className="space-y-3">
+                                            {valueDetection.map((pattern, i) => (
+                                                <div key={i} className={`p-3 rounded ${pattern.isNegative ? 'bg-red-50 border border-red-200' : 'bg-white border border-green-200'}`}>
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <span className={`text-xs font-bold ${pattern.isNegative ? 'text-red-800' : 'text-green-800'}`}>
+                                                            {pattern.isNegative ? '⚠️' : '✓'} {pattern.name}
+                                                        </span>
+                                                        <span className={`text-xs font-bold ${pattern.isNegative ? 'text-red-600' : 'text-green-600'}`}>
+                                                            {pattern.score > 0 ? '+' : ''}{pattern.score} pts
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-gray-600 mb-2">{pattern.explanation}</p>
+                                                    <div className="bg-gray-50 p-2 rounded">
+                                                        <p className="text-xs font-semibold text-gray-700 mb-1">Detected phrases:</p>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {pattern.keywords.map((kw, j) => (
+                                                                <span key={j} className={`px-2 py-0.5 rounded text-xs ${pattern.isNegative ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                                                    "{kw}"
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="mt-3 p-3 bg-white rounded border border-purple-200">
+                                            <p className="text-xs font-semibold text-purple-900 mb-1">Total Score Breakdown:</p>
+                                            <p className="text-xs text-gray-700">
+                                                Positive patterns: +{call.valueSelling.positiveScore} points • 
+                                                {call.valueSelling.negativeScore > 0 && ` Negative patterns: -${call.valueSelling.negativeScore} points • `}
+                                                Final score: {call.valueSelling.totalScore} points
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* COACHING INSIGHTS */}
+                                {call.coachingInsights && call.coachingInsights.length > 0 && (
+                                    <div className="p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
+                                        <p className="text-sm font-bold text-yellow-900 mb-2">💡 COACHING INSIGHTS:</p>
+                                        <ul className="space-y-1">
+                                            {call.coachingInsights.map((insight, i) => (
+                                                <li key={i} className="text-sm text-gray-900">• {insight}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {/* CLARI TOPICS */}
                                 {call.clariTopics && call.clariTopics.length > 0 && (
-                                    <div>
-                                        <p className="text-xs font-semibold text-gray-700 mb-2">🤖 Clari AI Topics:</p>
-                                        <div className="flex flex-wrap gap-1">
+                                    <div className="p-3 bg-white rounded border border-gray-200">
+                                        <p className="text-xs font-semibold text-gray-700 mb-2">🤖 Clari AI Detected Topics:</p>
+                                        <div className="flex flex-wrap gap-2">
                                             {call.clariTopics.map((topic, i) => (
-                                                <span key={i} className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                                <span key={i} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
                                                     {topic.name} ({topic.score})
                                                 </span>
                                             ))}
@@ -381,58 +562,39 @@
                                     </div>
                                 )}
 
+                                {/* DEAL PROGRESSION */}
                                 {(call.dealStageBefore || call.dealStageAfter) && (
-                                    <div>
-                                        <p className="text-xs font-semibold text-gray-700 mb-1">📈 Deal Progression:</p>
+                                    <div className="p-3 bg-white rounded border border-gray-200">
+                                        <p className="text-xs font-semibold text-gray-700 mb-2">📈 Deal Stage Progression:</p>
                                         <p className="text-sm text-gray-900">
                                             {call.dealStageBefore === call.dealStageAfter 
-                                                ? `Deal remained in ${call.dealStageAfter} stage`
-                                                : `${call.dealStageBefore} → ${call.dealStageAfter}`
+                                                ? `Remained in ${call.dealStageAfter} stage`
+                                                : (
+                                                    <span>
+                                                        <span className="font-semibold">{call.dealStageBefore || 'Unknown'}</span>
+                                                        {' → '}
+                                                        <span className={`font-semibold ${call.stageProgression === 'Advanced' ? 'text-green-600' : call.stageProgression === 'Regressed' ? 'text-red-600' : 'text-gray-900'}`}>
+                                                            {call.dealStageAfter || 'Unknown'}
+                                                        </span>
+                                                    </span>
+                                                )
                                             }
                                         </p>
                                     </div>
                                 )}
 
-                                {(call.talkListenRatio > 0 || call.engagingQuestions > 0) && (
-                                    <div>
-                                        <p className="text-xs font-semibold text-gray-700 mb-1">💬 Engagement:</p>
-                                        <p className="text-sm text-gray-900">
-                                            {call.engagingQuestions > 0 && `${call.engagingQuestions} questions asked • `}
-                                            {call.talkListenRatio > 0 && `${call.talkListenRatio}% talk/listen ratio`}
-                                        </p>
-                                    </div>
-                                )}
-
+                                {/* ATTENDEES */}
                                 {call.attendees && (
-                                    <div>
-                                        <p className="text-xs font-semibold text-gray-700 mb-1">👥 Attendees:</p>
+                                    <div className="p-3 bg-white rounded border border-gray-200">
+                                        <p className="text-xs font-semibold text-gray-700 mb-2">👥 Call Attendees:</p>
                                         <p className="text-xs text-gray-600">{call.attendees}</p>
                                     </div>
                                 )}
 
-                                <div>
-                                    <p className="text-xs font-semibold text-gray-700 mb-2">✨ Value Patterns Detected:</p>
-                                    <div className="space-y-1">
-                                        {Object.entries(call.valueSelling.patterns)
-                                            .filter(([_, p]) => p.count > 0)
-                                            .map(([key, p]) => (
-                                                <div key={key} className={`p-2 rounded ${p.isNegative ? 'bg-red-50' : 'bg-green-50'}`}>
-                                                    <div className="flex justify-between items-start">
-                                                        <span className={`text-xs font-medium ${p.isNegative ? 'text-red-800' : 'text-green-800'}`}>
-                                                            {p.isNegative ? '⚠️' : '✓'} {p.name} ({p.count})
-                                                        </span>
-                                                        <span className={`text-xs ${p.isNegative ? 'text-red-600' : 'text-green-600'}`}>
-                                                            {p.score > 0 ? '+' : ''}{p.score} pts
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                    </div>
-                                </div>
-
+                                {/* RECORDING LINK */}
                                 {call.callLink && (
-                                    <a href={call.callLink} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline font-medium">
-                                        🎥 View recording
+                                    <a href={call.callLink} target="_blank" rel="noopener noreferrer" className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+                                        🎥 View Full Recording
                                     </a>
                                 )}
                             </div>
