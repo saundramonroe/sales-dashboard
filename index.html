@@ -3,160 +3,591 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anaconda Sales Intelligence</title>
+    <title>Anaconda Sales Intelligence Dashboard</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <style>
-        body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
-        .test { background: #f0f0f0; padding: 20px; margin: 20px; border: 2px solid #333; }
-    </style>
 </head>
 <body>
     <div id="root"></div>
     
     <script type="text/babel">
-        console.log('✅ Script started');
-        
         const { useState } = React;
-        console.log('✅ React loaded:', !!React);
         
-        const App = () => {
-            console.log('✅ App rendering');
+        const Upload = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>);
+        const Award = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>);
+        const BarChart = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>);
+        const Star = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>);
+        const Target = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>);
+        const ThumbsDown = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>);
+        const Clock = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>);
+        const ChevronDown = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>);
+        const ChevronUp = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="18 15 12 9 6 15"/></svg>);
+        const Info = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>);
+        const Users = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>);
+
+        const Dashboard = () => {
             const [data, setData] = useState(null);
+            const [analysis, setAnalysis] = useState(null);
             const [loading, setLoading] = useState(false);
+            const [error, setError] = useState(null);
+            const [expandedCall, setExpandedCall] = useState(null);
+            const [activeView, setActiveView] = useState('overview');
+
+            const valuePatterns = {
+                discovery: { keywords: ['what does it cost', 'how much time', 'how many', 'what keeps you up', 'walk me through', 'help me understand', 'how long does it take', 'tell me about'], weight: 5, name: 'Discovery & Pain', explanation: 'Questions that uncover customer pain points' },
+                quantified_impact: { keywords: ['reduction', 'efficiency', 'roi', 'npv', 'cost avoidance', 'cost savings', 'fte savings', 'save'], weight: 5, name: 'Quantified Impact', explanation: 'Specific numbers showing business value' },
+                time_to_value: { keywords: ['weeks instead of months', 'pilot to production', 'time to market', 'faster time', 'quickly', 'expedite'], weight: 4, name: 'Time-to-Value', explanation: 'Discussion of speed and acceleration' },
+                customer_pain: { keywords: ['approval bottleneck', 'wild west', 'shadow it', 'pilot purgatory', 'stuck in pilot', 'dependency hell', 'problem', 'issue', 'challenge'], weight: 4, name: 'Customer Pain', explanation: 'Specific customer challenges mentioned' },
+                problem_to_solution: { keywords: ['eliminate bottleneck', 'gatekeepers to enablers', 'move from pilot to production', 'solution', 'help', 'resolve'], weight: 4, name: 'Problem to Solution', explanation: 'Connecting problems to solutions' },
+                strategic_value: { keywords: ['strategic', 'digital transformation', 'competitive advantage', 'innovation', 'business case'], weight: 3, name: 'Strategic Value', explanation: 'Executive-level strategic value' }
+            };
+
+            const negativePatterns = {
+                feature_selling: { keywords: ['just use', 'simply use', 'conda-forge alone'], weight: -3, name: 'Feature Selling', explanation: 'Leading with features instead of value' },
+                compliance_selling: { keywords: ['out of compliance', 'you need to buy', 'mandatory', 'license violation'], weight: -5, name: 'Compliance Selling', explanation: 'Using fear/compliance as motivator' }
+            };
+
+            const maturityInfo = {
+                'Master': { description: 'Excellent value-based selling with discovery, quantified impact, and customer focus', icon: '🌟', color: 'text-green-600' },
+                'Proficient': { description: 'Good value selling with some discovery and business impact', icon: '✓', color: 'text-blue-600' },
+                'Developing': { description: 'Starting to use value language but missing key elements', icon: '⚡', color: 'text-yellow-600' },
+                'Transactional': { description: 'Product-focused with minimal value discussion. Needs more discovery.', icon: '○', color: 'text-gray-600' },
+                'Needs Coaching': { description: 'Red flags detected: compliance/feature selling without value context', icon: '⚠️', color: 'text-red-600' }
+            };
+
+            const analyzeText = (text) => {
+                const textLower = (text || '').toLowerCase();
+                const results = {};
+                
+                Object.entries(valuePatterns).forEach(([key, pattern]) => {
+                    let count = 0;
+                    const found = [];
+                    pattern.keywords.forEach(kw => {
+                        if (textLower.includes(kw)) { count++; found.push(kw); }
+                    });
+                    results[key] = { ...pattern, count, score: count * pattern.weight, matchedKeywords: found };
+                });
+
+                Object.entries(negativePatterns).forEach(([key, pattern]) => {
+                    let count = 0;
+                    const found = [];
+                    pattern.keywords.forEach(kw => {
+                        if (textLower.includes(kw)) { count++; found.push(kw); }
+                    });
+                    results[key] = { ...pattern, count, score: count * pattern.weight, matchedKeywords: found, isNegative: true };
+                });
+
+                const totalScore = Object.values(results).reduce((sum, r) => sum + r.score, 0);
+                const negScore = Object.entries(results).filter(([k]) => negativePatterns[k]).reduce((sum, [_, r]) => sum + Math.abs(r.score), 0);
+                
+                let maturity = 'Transactional';
+                if (totalScore >= 8 && negScore === 0) maturity = 'Master';
+                else if (totalScore >= 5 && negScore <= 3) maturity = 'Proficient';
+                else if (totalScore >= 3) maturity = 'Developing';
+                else if (negScore > totalScore) maturity = 'Needs Coaching';
+
+                return { patterns: results, totalScore, maturity, hasNegativePatterns: negScore > 0 };
+            };
+
+            const getCoachingInsights = (vs) => {
+                const insights = [];
+                if (vs.maturity === 'Needs Coaching') {
+                    if (vs.hasNegativePatterns) insights.push('🚨 RED FLAG: Compliance/feature selling detected instead of value-based approach.');
+                    insights.push('Focus coaching on: Discovery questions, customer pain, and quantifying business impact.');
+                } else if (vs.maturity === 'Transactional') {
+                    if (vs.patterns.discovery?.count === 0) insights.push('MISSING: No discovery questions. Ask "What does that cost you?" or "How much time does that take?"');
+                    if (vs.patterns.quantified_impact?.count === 0) insights.push('MISSING: No quantified business impact. Reference ROI, cost savings, or efficiency gains.');
+                } else if (vs.maturity === 'Developing') {
+                    insights.push('GOOD START: Some value patterns present, but needs more depth.');
+                } else if (vs.maturity === 'Proficient') {
+                    insights.push('STRONG: Good value-based selling. Continue reinforcing these behaviors.');
+                } else if (vs.maturity === 'Master') {
+                    insights.push('🌟 EXEMPLAR: Excellent value-based selling. Use as training example.');
+                }
+                return insights;
+            };
+
+            const getTopics = (row) => {
+                const topics = [];
+                const cols = ['Competition (Topic)', 'Customer Goals Pain Points (Topic)', 'NEXT STEPS - AI DETECTED (Topic)', 'Process (Topic)', 'PRICING - AI DETECTED (Topic)', 'Timing (Topic)'];
+                cols.forEach(col => {
+                    if (row[col] && row[col] > 0) {
+                        const name = col.replace(' (Topic)', '').replace('NEXT STEPS - AI DETECTED', 'Next Steps').replace('PRICING - AI DETECTED', 'Pricing');
+                        topics.push({ name, score: row[col] });
+                    }
+                });
+                return topics.sort((a, b) => b.score - a.score);
+            };
+
+            const getSummary = (call) => {
+                const topics = call.clariTopics || [];
+                const topicNames = topics.map(t => t.name);
+                
+                let summary = `${call.callTitle} with ${call.account}.`;
+                
+                if (topics.length > 0) {
+                    summary += ` Main topics: ${topics.slice(0, 3).map(t => `${t.name} (${t.score})`).join(', ')}.`;
+                }
+                
+                if (call.engagingQuestions > 5) {
+                    summary += ` High engagement with ${call.engagingQuestions} discovery questions.`;
+                } else if (call.engagingQuestions < 2) {
+                    summary += ` Limited discovery (${call.engagingQuestions} questions).`;
+                }
+                
+                if (call.stageProgression === 'Advanced') {
+                    summary += ` ✅ Deal advanced from ${call.dealStageBefore} to ${call.dealStageAfter}.`;
+                } else if (call.stageProgression === 'Regressed') {
+                    summary += ` ⚠️ Deal moved backward.`;
+                }
+                
+                return summary;
+            };
 
             const handleUpload = async (e) => {
-                console.log('📁 File selected');
                 const file = e.target.files[0];
                 if (!file) return;
 
                 setLoading(true);
+                setError(null);
+
                 try {
                     const text = await file.text();
-                    console.log('✅ File read, length:', text.length);
                     
                     Papa.parse(text, {
                         header: true,
+                        skipEmptyLines: true,
                         complete: (results) => {
-                            console.log('✅ Parsed rows:', results.data.length);
                             const processed = results.data
                                 .filter(row => row['Call title'] || row['Account Name'])
-                                .map((row, idx) => ({
-                                    id: idx,
-                                    title: row['Call title'] || 'Unknown',
-                                    account: row['Account Name'] || 'Unknown',
-                                    rep: row['Rep Name'] || 'Unknown'
-                                }));
-                            
-                            console.log('✅ Processed calls:', processed.length);
+                                .map((row, idx) => {
+                                    const textAnalysis = [row['Call title'] || '', row['Account Name'] || '', row['Opportunity Name'] || ''].join(' ');
+                                    const vs = analyzeText(textAnalysis);
+                                    const topics = getTopics(row);
+
+                                    return {
+                                        id: idx,
+                                        callTitle: row['Call title'] || 'Unknown',
+                                        account: row['Account Name'] || 'Unknown',
+                                        repName: row['Rep Name'] || 'Unknown Rep',
+                                        callLink: row['Call Link'] || '',
+                                        durationMinutes: Math.round((row['Duration (in Seconds)'] || 0) / 60),
+                                        talkListenRatio: row['Talk/listen ratio (%)'] || 0,
+                                        engagingQuestions: row['Engaging questions'] || 0,
+                                        dealStageBefore: row['Deal Stage before Call'] || '',
+                                        dealStageAfter: row['Deal Stage after Call'] || '',
+                                        attendees: row['Joined Attendees'] || '',
+                                        valueSelling: vs,
+                                        clariTopics: topics,
+                                        coachingInsights: getCoachingInsights(vs),
+                                        stageProgression: (() => {
+                                            const b = row['Deal Stage before Call'];
+                                            const a = row['Deal Stage after Call'];
+                                            if (!b || !a || b === a) return 'No Change';
+                                            const stages = ['Discovery', 'Qualification', 'Proposal', 'Negotiation', 'Closed Won'];
+                                            const bi = stages.findIndex(s => b.includes(s));
+                                            const ai = stages.findIndex(s => a.includes(s));
+                                            if (bi < ai) return 'Advanced';
+                                            if (bi > ai) return 'Regressed';
+                                            return 'Changed';
+                                        })()
+                                    };
+                                });
+
+                            if (processed.length === 0) {
+                                setError('No valid data found');
+                                setLoading(false);
+                                return;
+                            }
+
                             setData(processed);
-                            setLoading(false);
-                        },
-                        error: (err) => {
-                            console.error('❌ Parse error:', err);
-                            alert('Error: ' + err.message);
+                            
+                            const total = processed.length;
+                            const avgScore = processed.reduce((sum, r) => sum + r.valueSelling.totalScore, 0) / total;
+                            const matDist = {};
+                            processed.forEach(r => { matDist[r.valueSelling.maturity] = (matDist[r.valueSelling.maturity] || 0) + 1; });
+                            
+                            const repPerf = {};
+                            processed.forEach(r => {
+                                if (!repPerf[r.repName]) repPerf[r.repName] = { calls: 0, totalScore: 0, scores: [], master: 0, proficient: 0, developing: 0, transactional: 0, coaching: 0 };
+                                repPerf[r.repName].calls++;
+                                repPerf[r.repName].totalScore += r.valueSelling.totalScore;
+                                repPerf[r.repName].scores.push(r.valueSelling.totalScore);
+                                const m = r.valueSelling.maturity;
+                                if (m === 'Master') repPerf[r.repName].master++;
+                                else if (m === 'Proficient') repPerf[r.repName].proficient++;
+                                else if (m === 'Developing') repPerf[r.repName].developing++;
+                                else if (m === 'Transactional') repPerf[r.repName].transactional++;
+                                else if (m === 'Needs Coaching') repPerf[r.repName].coaching++;
+                            });
+                            
+                            Object.keys(repPerf).forEach(rep => {
+                                repPerf[rep].avgScore = Math.round(repPerf[rep].totalScore / repPerf[rep].calls);
+                            });
+                            
+                            setAnalysis({
+                                overview: {
+                                    total,
+                                    avgScore: Math.round(avgScore),
+                                    masterCallsCount: processed.filter(r => r.valueSelling.maturity === 'Master').length,
+                                    highValueCount: processed.filter(r => r.valueSelling.totalScore >= 5).length,
+                                    needsCoachingCount: processed.filter(r => r.valueSelling.maturity === 'Needs Coaching').length
+                                },
+                                maturityDistribution: matDist,
+                                topPerformers: [...processed].sort((a, b) => b.valueSelling.totalScore - a.valueSelling.totalScore).slice(0, 20),
+                                repPerformance: repPerf
+                            });
+                            
                             setLoading(false);
                         }
                     });
                 } catch (err) {
-                    console.error('❌ File error:', err);
-                    alert('Error: ' + err.message);
+                    setError('Error: ' + err.message);
                     setLoading(false);
                 }
             };
 
-            if (!data) {
+            const getMaturityColor = (m) => {
+                if (m === 'Master') return 'bg-green-100 text-green-800 border-green-300';
+                if (m === 'Proficient') return 'bg-blue-100 text-blue-800 border-blue-300';
+                if (m === 'Developing') return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+                if (m === 'Needs Coaching') return 'bg-red-100 text-red-800 border-red-300';
+                return 'bg-gray-100 text-gray-800 border-gray-300';
+            };
+
+            if (!data || !analysis) {
                 return (
-                    <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
-                        <div style={{ background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', padding: '40px' }}>
-                            <h1 style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '10px' }}>
-                                🏆 Anaconda Sales Intelligence
-                            </h1>
-                            <p style={{ color: '#666', marginBottom: '30px' }}>Upload your Clari CSV file</p>
-                            
-                            <div style={{ border: '2px dashed #ccc', borderRadius: '8px', padding: '60px', textAlign: 'center', background: '#f9f9f9' }}>
-                                <input 
-                                    type="file" 
-                                    accept=".csv" 
-                                    onChange={handleUpload}
-                                    style={{ display: 'none' }}
-                                    id="upload"
-                                />
-                                <label htmlFor="upload" style={{ cursor: 'pointer' }}>
-                                    <div style={{ fontSize: '48px', marginBottom: '20px' }}>📤</div>
-                                    <div style={{ fontSize: '20px', fontWeight: '600', marginBottom: '10px' }}>
-                                        Upload CSV File
+                    <div className="min-h-screen bg-gray-50 p-8">
+                        <div className="max-w-7xl mx-auto">
+                            <div className="bg-white rounded-lg shadow-lg p-8">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-8 h-8 text-blue-600"><Award /></div>
+                                    <div>
+                                        <h1 className="text-3xl font-bold text-gray-900">Anaconda Sales Intelligence</h1>
+                                        <p className="text-gray-600">Upload your Clari CSV file to analyze call quality</p>
                                     </div>
-                                    <div style={{ fontSize: '14px', color: '#666' }}>
-                                        Click to browse or drag and drop
-                                    </div>
-                                </label>
-                            </div>
-                            
-                            {loading && (
-                                <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '18px', color: '#666' }}>
-                                    ⏳ Analyzing...
                                 </div>
-                            )}
+
+                                {error && (
+                                    <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded">
+                                        <p className="text-sm text-red-800">{error}</p>
+                                    </div>
+                                )}
+
+                                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer">
+                                    <input type="file" accept=".csv" onChange={handleUpload} className="hidden" id="upload" />
+                                    <label htmlFor="upload" className="cursor-pointer">
+                                        <div className="w-16 h-16 text-gray-400 mx-auto mb-4"><Upload /></div>
+                                        <p className="text-xl font-medium text-gray-700 mb-2">Upload CSV File</p>
+                                        <p className="text-sm text-gray-500">Click to browse or drag and drop</p>
+                                    </label>
+                                </div>
+
+                                {loading && (
+                                    <div className="mt-8 text-center animate-pulse">
+                                        <div className="w-12 h-12 text-blue-600 mx-auto mb-4"><BarChart /></div>
+                                        <p className="text-gray-600">Analyzing calls...</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 );
             }
 
-            return (
-                <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
-                    <div style={{ background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', padding: '40px', marginBottom: '20px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '5px' }}>
-                                    🏆 Anaconda Sales Intelligence
-                                </h1>
-                                <p style={{ color: '#666' }}>{data.length} calls analyzed</p>
+            const CallCard = ({ call, idx }) => {
+                const expanded = expandedCall === idx;
+                const info = maturityInfo[call.valueSelling.maturity];
+
+                return (
+                    <div className="border-2 border-blue-200 rounded-lg p-4 bg-white mb-3">
+                        <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-lg font-bold text-blue-600">#{idx + 1}</span>
+                                    <p className="font-semibold text-gray-900">{call.account}</p>
+                                </div>
+                                <p className="text-sm text-gray-600">{call.callTitle}</p>
+                                <p className="text-xs text-gray-500">Rep: {call.repName}</p>
                             </div>
-                            <button 
-                                onClick={() => setData(null)}
-                                style={{ padding: '10px 20px', background: '#f0f0f0', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
-                            >
-                                Upload New
-                            </button>
+                            <div className="text-right">
+                                <span className="text-2xl font-bold text-green-600">{call.valueSelling.totalScore}</span>
+                                <p className="text-xs text-gray-600">score</p>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div style={{ background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', padding: '40px' }}>
-                        <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '20px' }}>All Calls</h2>
-                        {data.map((call) => (
-                            <div key={call.id} style={{ border: '2px solid #ddd', borderRadius: '8px', padding: '20px', marginBottom: '15px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <div>
-                                        <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '5px' }}>
-                                            {call.account}
-                                        </div>
-                                        <div style={{ fontSize: '14px', color: '#666', marginBottom: '5px' }}>
-                                            {call.title}
-                                        </div>
-                                        <div style={{ fontSize: '12px', color: '#999' }}>
-                                            Rep: {call.rep}
+
+                        <div className="flex items-center gap-2 mb-3 flex-wrap">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getMaturityColor(call.valueSelling.maturity)}`}>
+                                {info.icon} {call.valueSelling.maturity}
+                            </span>
+                            {call.durationMinutes > 0 && (
+                                <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
+                                    <Clock className="w-3 h-3 inline mr-1" />{call.durationMinutes} min
+                                </span>
+                            )}
+                            {call.stageProgression !== 'No Change' && (
+                                <span className={`px-2 py-1 rounded-full text-xs ${call.stageProgression === 'Advanced' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                    {call.stageProgression}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="mb-3 p-3 bg-blue-50 rounded">
+                            <p className={`text-xs font-semibold ${info.color} mb-1`}>
+                                <Info className="w-3 h-3 inline mr-1" />What "{call.valueSelling.maturity}" means:
+                            </p>
+                            <p className="text-xs text-gray-700">{info.description}</p>
+                        </div>
+
+                        <button onClick={() => setExpandedCall(expanded ? null : idx)} className="w-full text-left p-3 bg-blue-50 rounded hover:bg-blue-100">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-blue-900">📋 Detailed Call Summary</span>
+                                {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </div>
+                        </button>
+
+                        {expanded && (
+                            <div className="mt-3 p-4 bg-gray-50 rounded space-y-4">
+                                <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300">
+                                    <p className="text-sm font-bold text-blue-900 mb-2">📝 QUICK SUMMARY:</p>
+                                    <p className="text-sm text-gray-900 leading-relaxed">{getSummary(call)}</p>
+                                </div>
+
+                                {call.coachingInsights.length > 0 && (
+                                    <div className="p-3 bg-yellow-50 rounded border-l-4 border-yellow-500">
+                                        <p className="text-xs font-semibold text-yellow-900 mb-2">💡 COACHING INSIGHTS:</p>
+                                        {call.coachingInsights.map((ins, i) => (
+                                            <p key={i} className="text-sm text-gray-900 mb-1">• {ins}</p>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {call.clariTopics.length > 0 && (
+                                    <div className="p-3 bg-white rounded border border-gray-200">
+                                        <p className="text-xs font-semibold text-gray-700 mb-2">🤖 Clari AI Topics:</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {call.clariTopics.map((t, i) => (
+                                                <span key={i} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                                                    {t.name} ({t.score})
+                                                </span>
+                                            ))}
                                         </div>
                                     </div>
+                                )}
+
+                                {call.dealStageAfter && (
+                                    <div className="p-3 bg-white rounded border border-gray-200">
+                                        <p className="text-xs font-semibold text-gray-700 mb-1">📈 Deal Progression:</p>
+                                        <p className="text-sm text-gray-900">
+                                            {call.dealStageBefore === call.dealStageAfter 
+                                                ? `Remained in ${call.dealStageAfter}` 
+                                                : `${call.dealStageBefore} → ${call.dealStageAfter}`}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {call.engagingQuestions > 0 && (
+                                    <div className="p-3 bg-white rounded border border-gray-200">
+                                        <p className="text-xs font-semibold text-gray-700 mb-1">💬 Engagement:</p>
+                                        <p className="text-sm text-gray-900">
+                                            {call.engagingQuestions} questions • {call.talkListenRatio}% talk/listen ratio
+                                        </p>
+                                    </div>
+                                )}
+
+                                {call.attendees && (
+                                    <div className="p-3 bg-white rounded border border-gray-200">
+                                        <p className="text-xs font-semibold text-gray-700 mb-1">👥 Attendees:</p>
+                                        <p className="text-xs text-gray-600">{call.attendees}</p>
+                                    </div>
+                                )}
+
+                                <div className="p-3 bg-purple-50 rounded border-l-4 border-purple-500">
+                                    <p className="text-xs font-semibold text-purple-900 mb-2">✨ Value Patterns Detected:</p>
+                                    {Object.entries(call.valueSelling.patterns)
+                                        .filter(([_, p]) => p.count > 0)
+                                        .map(([key, p]) => (
+                                            <div key={key} className={`p-2 rounded mb-2 ${p.isNegative ? 'bg-red-50' : 'bg-white border border-green-200'}`}>
+                                                <div className="flex justify-between mb-1">
+                                                    <span className={`text-xs font-medium ${p.isNegative ? 'text-red-800' : 'text-green-800'}`}>
+                                                        {p.isNegative ? '⚠️' : '✓'} {p.name} ({p.count})
+                                                    </span>
+                                                    <span className={`text-xs font-bold ${p.isNegative ? 'text-red-600' : 'text-green-600'}`}>
+                                                        {p.score > 0 ? '+' : ''}{p.score} pts
+                                                    </span>
+                                                </div>
+                                                {p.matchedKeywords && p.matchedKeywords.length > 0 && (
+                                                    <div className="mt-1">
+                                                        <p className="text-xs text-gray-600 mb-1">Detected phrases:</p>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {p.matchedKeywords.map((kw, i) => (
+                                                                <span key={i} className={`px-2 py-0.5 rounded text-xs ${p.isNegative ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                                                    "{kw}"
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                </div>
+
+                                {call.callLink && (
+                                    <a href={call.callLink} target="_blank" className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+                                        🎥 View Recording
+                                    </a>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-50 p-8">
+                    <div className="max-w-7xl mx-auto">
+                        <div className="bg-white rounded-lg shadow p-6 mb-6">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 text-blue-600"><Award /></div>
+                                    <div>
+                                        <h1 className="text-2xl font-bold text-gray-900">Anaconda Sales Intelligence</h1>
+                                        <p className="text-sm text-gray-600">{data.length} calls • Avg Score: <span className="font-bold text-blue-600">{analysis.overview.avgScore}</span></p>
+                                    </div>
+                                </div>
+                                <button onClick={() => { setData(null); setAnalysis(null); }} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium">Upload New</button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-6 mb-6">
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-5 h-5 text-green-600"><Star /></div>
+                                    <span className="text-sm text-gray-600">Master Calls</span>
+                                </div>
+                                <p className="text-3xl font-bold text-gray-900">{analysis.overview.masterCallsCount}</p>
+                                <p className="text-xs text-gray-500 mt-1">{((analysis.overview.masterCallsCount / analysis.overview.total) * 100).toFixed(1)}%</p>
+                            </div>
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-5 h-5 text-purple-600"><Target /></div>
+                                    <span className="text-sm text-gray-600">High-Value</span>
+                                </div>
+                                <p className="text-3xl font-bold text-gray-900">{analysis.overview.highValueCount}</p>
+                                <p className="text-xs text-gray-500 mt-1">{((analysis.overview.highValueCount / analysis.overview.total) * 100).toFixed(1)}%</p>
+                            </div>
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-5 h-5 text-red-600"><ThumbsDown /></div>
+                                    <span className="text-sm text-gray-600">Needs Coaching</span>
+                                </div>
+                                <p className="text-3xl font-bold text-gray-900">{analysis.overview.needsCoachingCount}</p>
+                                <p className="text-xs text-gray-500 mt-1">{((analysis.overview.needsCoachingCount / analysis.overview.total) * 100).toFixed(1)}%</p>
+                            </div>
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-5 h-5 text-blue-600"><BarChart /></div>
+                                    <span className="text-sm text-gray-600">Avg Score</span>
+                                </div>
+                                <p className="text-3xl font-bold text-blue-600">{analysis.overview.avgScore}</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow mb-6 p-2">
+                            <div className="flex gap-2">
+                                {['overview', 'allCalls', 'topCalls', 'reps'].map(view => (
+                                    <button key={view} onClick={() => setActiveView(view)} className={`px-4 py-2 rounded ${activeView === view ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                                        {view === 'allCalls' ? 'All Calls' : view === 'topCalls' ? 'Top Calls' : view === 'reps' ? '🏆 Reps' : 'Overview'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {activeView === 'overview' && (
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h3 className="text-lg font-semibold mb-4">Maturity Distribution</h3>
+                                <div className="grid grid-cols-5 gap-4">
+                                    {Object.entries(analysis.maturityDistribution).map(([mat, count]) => {
+                                        const info = maturityInfo[mat];
+                                        return (
+                                            <div key={mat} className={`rounded-lg p-4 border-2 ${getMaturityColor(mat)}`}>
+                                                <p className="text-sm font-medium mb-1">{info.icon} {mat}</p>
+                                                <p className="text-3xl font-bold">{count}</p>
+                                                <p className="text-xs mt-1">{((count / analysis.overview.total) * 100).toFixed(1)}%</p>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
-                        ))}
+                        )}
+
+                        {activeView === 'allCalls' && (
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h3 className="text-lg font-semibold mb-4">All Calls with Summaries</h3>
+                                {data.map((call, idx) => <CallCard key={idx} call={call} idx={idx} />)}
+                            </div>
+                        )}
+
+                        {activeView === 'topCalls' && (
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h3 className="text-lg font-semibold mb-4">Top 20 Calls by Score</h3>
+                                {analysis.topPerformers.map((call, idx) => <CallCard key={idx} call={call} idx={idx} />)}
+                            </div>
+                        )}
+
+                        {activeView === 'reps' && (
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h3 className="text-lg font-semibold mb-4">🏆 Rep Performance</h3>
+                                {Object.entries(analysis.repPerformance)
+                                    .sort((a, b) => b[1].avgScore - a[1].avgScore)
+                                    .map(([rep, stats], idx) => (
+                                        <div key={rep} className="border-2 border-gray-200 rounded-lg p-4 mb-3">
+                                            <div className="flex justify-between mb-3">
+                                                <div>
+                                                    <span className="text-lg font-bold text-blue-600">#{idx + 1}</span>
+                                                    <span className="ml-2 font-semibold text-gray-900">{rep}</span>
+                                                    <p className="text-xs text-gray-500">{stats.calls} calls</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-3xl font-bold text-blue-600">{stats.avgScore}</span>
+                                                    <p className="text-xs text-gray-600">avg score</p>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-5 gap-2">
+                                                <div className="bg-green-50 rounded p-2 text-center">
+                                                    <p className="text-xs text-gray-600">Master</p>
+                                                    <p className="text-lg font-bold text-green-600">{stats.master}</p>
+                                                </div>
+                                                <div className="bg-blue-50 rounded p-2 text-center">
+                                                    <p className="text-xs text-gray-600">Proficient</p>
+                                                    <p className="text-lg font-bold text-blue-600">{stats.proficient}</p>
+                                                </div>
+                                                <div className="bg-yellow-50 rounded p-2 text-center">
+                                                    <p className="text-xs text-gray-600">Developing</p>
+                                                    <p className="text-lg font-bold text-yellow-600">{stats.developing}</p>
+                                                </div>
+                                                <div className="bg-gray-50 rounded p-2 text-center">
+                                                    <p className="text-xs text-gray-600">Transact.</p>
+                                                    <p className="text-lg font-bold text-gray-600">{stats.transactional}</p>
+                                                </div>
+                                                <div className="bg-red-50 rounded p-2 text-center">
+                                                    <p className="text-xs text-gray-600">Coaching</p>
+                                                    <p className="text-lg font-bold text-red-600">{stats.coaching}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             );
         };
 
-        console.log('✅ About to render');
-        try {
-            ReactDOM.render(<App />, document.getElementById('root'));
-            console.log('✅ Render complete');
-        } catch (err) {
-            console.error('❌ Render error:', err);
-            document.body.innerHTML = '<div style="padding: 40px; color: red; font-size: 20px;">ERROR: ' + err.message + '</div>';
-        }
+        ReactDOM.render(<Dashboard />, document.getElementById('root'));
     </script>
 </body>
 </html>
