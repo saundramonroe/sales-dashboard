@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -172,8 +172,12 @@
                                 }
 
                                 setData(processed);
-                                generateAnalysis(processed);
-                                setLoading(false);
+                                
+                                // Small delay to ensure state updates properly
+                                setTimeout(() => {
+                                    generateAnalysis(processed);
+                                    setLoading(false);
+                                }, 100);
                             },
                             error: (error) => {
                                 setError('Error parsing CSV: ' + error.message);
@@ -191,8 +195,11 @@
 
                         console.log('Processed transcripts:', transcripts.length);
                         setData(transcripts);
-                        generateAnalysis(transcripts);
-                        setLoading(false);
+                        
+                        setTimeout(() => {
+                            generateAnalysis(transcripts);
+                            setLoading(false);
+                        }, 100);
                     } else {
                         setError('Please upload CSV or TXT files only');
                         setLoading(false);
@@ -265,7 +272,7 @@
                 }
             };
 
-            if (!data) {
+            if (!data || !analysis) {
                 return (
                     <div className="min-h-screen bg-gray-50 p-8">
                         <div className="max-w-7xl mx-auto">
