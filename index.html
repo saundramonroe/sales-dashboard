@@ -121,7 +121,7 @@ if (m === 'Needs Coaching') return 'bg-red-100 text-red-800';
 return 'bg-gray-100 text-gray-800';
 };
 
-if (!data) {
+if (!data || !analysis) {
 return (
 <div className="min-h-screen bg-gray-50 p-8">
 <div className="max-w-7xl mx-auto">
